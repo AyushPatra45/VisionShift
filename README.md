@@ -48,16 +48,24 @@ Move your hand vertically to control the neon paddle and return the ball. Each h
 
 Requirements: a modern Chromium-based browser, a webcam, Python 3 for the bundled static server, and a current Node.js/npm installation for dependencies and tests.
 
-On macOS, double-click **Start Gesture Lab.command**. If macOS blocks it the first time, right-click the file, choose **Open**, and confirm.
+### macOS — recommended
 
-Or use Terminal:
+Double-click **START VISION SHIFT.command** in the project folder. The launcher installs the browser runtime when needed, reuses an existing VisionShift server or selects an available local port from `8080` through `8099`, and opens the correct page automatically.
+
+If macOS blocks the launcher the first time, right-click **START VISION SHIFT.command**, choose **Open**, and confirm.
+
+### Terminal
 
 ```bash
 npm install
 npm start
 ```
 
-Open [http://localhost:8080](http://localhost:8080), select an experience, choose **Enable camera**, and allow camera access. Do not open `index.html` as a `file:///...` URL: JavaScript modules and browser camera security rules require localhost or HTTPS.
+Open [http://localhost:8080](http://localhost:8080), select an experience, choose **Enable camera**, and allow camera access.
+
+**Do not double-click `index.html`.** A `file:///...` page cannot load the camera modules correctly because browser module and camera security rules require localhost or HTTPS. If it is opened accidentally, VisionShift shows the exact launcher instructions. It also checks local ports `8080`–`8099` for VisionShift's health marker and redirects automatically when the app is already running.
+
+If a model or application module fails to load, the dependency-free page shell and experience navigation remain available. Follow the on-screen restart message, close the stale tab if necessary, and open **START VISION SHIFT.command** again.
 
 ## Test and build
 

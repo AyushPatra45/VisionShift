@@ -110,6 +110,11 @@ h1 em { color: var(--acid); font-style: normal; }
 .permission-panel button { min-width: 190px; padding: 13px 18px; display: flex; justify-content: space-between; }
 .permission-panel button:disabled { opacity: .4; cursor: wait; }
 .permission-panel small { min-height: 16px; margin-top: 12px; color: #777d7a; font: 10px "Space Mono", monospace; }
+.permission-panel.startup-help { background: radial-gradient(circle, #211518, #080a0d 68%); }
+.permission-panel.startup-help .orb { border-color: #ff7272; }
+.permission-panel.startup-help .orb span { background: #ff7272; box-shadow: 0 0 30px rgba(255,114,114,.55); animation: none; }
+.permission-panel.startup-help button:disabled { max-width: 360px; justify-content: center; color: var(--ink); background: #292128; opacity: 1; cursor: not-allowed; }
+.permission-panel.startup-help small { max-width: 440px; color: #b6aaa9; line-height: 1.55; }
 .capture-row { display: flex; align-items: center; gap: 18px; margin-top: 15px; }
 .capture-row.hidden { display: none; }
 .capture-row p { margin: 0; color: #707673; font-size: 12px; }

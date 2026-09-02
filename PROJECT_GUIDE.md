@@ -68,16 +68,27 @@ Frame-time normalization keeps movement reasonably consistent across different c
 | `*.test.js` | Unit tests for state and reusable geometry/classification helpers |
 | `models/` | Local gesture-recognition and person-segmentation model assets |
 | `scripts/build.mjs` | Reproducible static deployment build into `dist/` |
+| `START VISION SHIFT.command` | Primary macOS launcher; delegates to the local-server bootstrap |
+| `assets/visionshift-health.svg` | App-specific marker used to identify a running VisionShift server |
 | `.github/workflows/pages.yml` | Test, build, artifact upload, and GitHub Pages deployment |
 
 ## Runtime lifecycle
 
-1. The page loads the local MediaPipe Tasks Vision runtime and hand model, trying GPU and then CPU if necessary. The cloak segmenter degrades independently so other modules still work if it is unavailable.
-2. The user explicitly grants webcam access.
-3. Each video frame is sent to the gesture recognizer; the selected experience receives the latest result.
-4. Reality FX additionally runs person segmentation for cloak compositing.
-5. Canvas renders the live camera plus the active visual layer, HUD, drawing, or game.
-6. Switching experiences resets only module-specific transient state where necessary; the camera and shared recognizer stay active.
+1. A small inline, dependency-free shell initializes the experience navigation before `app.js` is imported.
+2. The page loads the local MediaPipe Tasks Vision runtime and hand model, trying GPU and then CPU if necessary. The cloak segmenter degrades independently so other modules still work if it is unavailable.
+3. The user explicitly grants webcam access.
+4. Each video frame is sent to the gesture recognizer; the selected experience receives the latest result.
+5. Reality FX additionally runs person segmentation for cloak compositing.
+6. Canvas renders the live camera plus the active visual layer, HUD, drawing, or game.
+7. Switching experiences resets only module-specific transient state where necessary; the camera and shared recognizer stay active.
+
+## Local startup and failure recovery
+
+On macOS, **`START VISION SHIFT.command` is the primary launch path**. It delegates to the server bootstrap, installs the MediaPipe browser dependency when it is missing, reuses a running VisionShift instance, or chooses the first available localhost port from `8080` through `8099`. Users should not double-click `index.html`; a `file:` origin cannot satisfy the application's JavaScript-module and camera requirements.
+
+The direct-file page is intentionally a useful recovery screen instead of a silent loading state. It displays the exact launcher name and probes `http://127.0.0.1:8080/` through port `8099` for `assets/visionshift-health.svg`. A successful image probe identifies this project—not merely any process using the port—and redirects to the running app.
+
+Experience selection is wired by the inline shell before the MediaPipe-dependent application module starts. Therefore the six-module navigation continues to work when `app.js`, a model, or its runtime cannot initialize. The camera controls are unavailable in that state, while the visible error panel directs the user to restart with **START VISION SHIFT.command**. This separation makes startup problems diagnosable without leaving the interface frozen on “Loading.”
 
 ## Build and deployment
 

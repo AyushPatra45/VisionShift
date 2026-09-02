@@ -200,21 +200,149 @@
 
     <footer><span>MEDIAPIPE × CANVAS × LOCAL AI</span><span>NO UPLOADS · NO CONTROLLER · JUST YOUR HAND</span></footer>
     <script>
-      if (window.location.protocol === "file:") {
-        window.addEventListener("DOMContentLoaded", () => {
-          const note = document.querySelector("#loadNote");
-          const status = document.querySelector(".status");
-          const statusText = document.querySelector("#statusText");
-          note.innerHTML = 'This app cannot run as a file. Start it with <strong>Start Gesture Lab.command</strong> or <strong>npm start</strong>.';
-          status.classList.add("error");
-          statusText.textContent = "LOCAL SERVER REQUIRED";
+      (() => {
+        const experiences = Object.freeze({
+          effects: {
+            eyebrow: "EXPERIENCE 01 / REALITY FX",
+            stage: "REALITY FX / LIVE",
+            description: "Become invisible, fracture the live feed, or leave ghost echoes using only recognizable hand signs.",
+          },
+          draw: {
+            eyebrow: "EXPERIENCE 02 / AIR CANVAS",
+            stage: "AIR CANVAS / LIVE",
+            description: "Pinch your fingers to sketch in mid-air, switch ink with a victory sign, and erase without touching a screen.",
+          },
+          hud: {
+            eyebrow: "EXPERIENCE 03 / HAND HUD",
+            stage: "HAND HUD / DIAGNOSTIC",
+            description: "Inspect the 21 landmarks, joint connections, handedness, gesture label, and confidence seen by the vision model.",
+          },
+          game: {
+            eyebrow: "EXPERIENCE 04 / ORB GAME",
+            stage: "ORB GAME / LIVE",
+            description: "Aim with your index finger and pinch glowing targets. Build a streak without using a mouse or keyboard.",
+          },
+          sign: {
+            eyebrow: "EXPERIENCE 05 / SIGN LAB",
+            stage: "SIGN LAB / PRACTICE",
+            description: "Practice five simplified static ASL handshapes with live landmarks, targeted hints, and a steady-hold challenge.",
+          },
+          pong: {
+            eyebrow: "EXPERIENCE 06 / NEON PONG",
+            stage: "NEON PONG / LIVE",
+            description: "Move your palm to defend the neon wall. Every return gets faster; three misses end the run.",
+          },
         });
-      } else {
+
+        let activeExperience = "effects";
+
+        function selectExperience(nextExperience, notifyApp = true) {
+          const meta = experiences[nextExperience];
+          if (!meta) return;
+
+          activeExperience = nextExperience;
+          document.querySelector("#stage").dataset.experience = nextExperience;
+          document.querySelector("#experienceEyebrow").textContent = meta.eyebrow;
+          document.querySelector("#experienceDescription").textContent = meta.description;
+          document.querySelector("#stageExperience").textContent = meta.stage;
+          document.querySelector("#captureRow").classList.toggle("hidden", nextExperience !== "effects");
+
+          document.querySelectorAll(".experience-button").forEach((button) => {
+            const selected = button.dataset.experience === nextExperience;
+            button.classList.toggle("active", selected);
+            button.setAttribute("aria-pressed", String(selected));
+          });
+          document.querySelectorAll(".control-panel").forEach((panel) => {
+            panel.classList.toggle("active", panel.dataset.experiencePanel === nextExperience);
+          });
+
+          if (notifyApp) {
+            window.dispatchEvent(new CustomEvent("visionshift:experience", {
+              detail: { experience: nextExperience },
+            }));
+          }
+        }
+
+        document.querySelectorAll(".experience-button").forEach((button) => {
+          button.addEventListener("click", () => selectExperience(button.dataset.experience));
+        });
+
+        window.VisionShiftShell = Object.freeze({
+          get activeExperience() { return activeExperience; },
+          selectExperience,
+          experiences: Object.keys(experiences),
+        });
+      })();
+    </script>
+    <script>
+      (() => {
+        const panel = document.querySelector("#permissionPanel");
+        const panelTitle = panel.querySelector("h2");
+        const panelDescription = panel.querySelector("p");
+        const startButton = document.querySelector("#startButton");
+        const note = document.querySelector("#loadNote");
+        const status = document.querySelector(".status");
+        const statusText = document.querySelector("#statusText");
+        const modeChip = document.querySelector("#modeChip");
+
+        function showStartupHelp(kind) {
+          status.classList.remove("ready");
+          status.classList.add("error");
+          panel.classList.add("startup-help");
+          startButton.disabled = true;
+          modeChip.classList.add("visible");
+
+          if (kind === "file") {
+            statusText.textContent = "OPEN THROUGH LOCALHOST";
+            panelTitle.textContent = "Use the VisionShift launcher";
+            panelDescription.textContent = "Chrome blocks camera modules when index.html is opened as a file. Your project is safe; it only needs its local server.";
+            startButton.innerHTML = "Double-click START VISION SHIFT.command";
+            note.innerHTML = "In the Vision folder, open <strong>START VISION SHIFT.command</strong> — not index.html.";
+            modeChip.textContent = "PREVIEW ONLY";
+          } else if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+            statusText.textContent = "APP LOAD ERROR";
+            panelTitle.textContent = "The vision engine did not load";
+            panelDescription.textContent = "The menu still works. Restart the app with the launcher to restore camera controls.";
+            startButton.innerHTML = "Restart with START VISION SHIFT.command";
+            note.textContent = "If this continues, close the old tab and launch VisionShift again.";
+            modeChip.textContent = "MENU AVAILABLE";
+          } else {
+            statusText.textContent = "APP LOAD ERROR";
+            panelTitle.textContent = "The vision engine did not load";
+            panelDescription.textContent = "The menu still works, but one of the deployed camera files could not be loaded.";
+            startButton.disabled = false;
+            startButton.innerHTML = "Reload VisionShift";
+            startButton.addEventListener("click", () => window.location.reload(), { once: true });
+            note.textContent = "If reloading does not help, the site deployment may still be updating.";
+            modeChip.textContent = "MENU AVAILABLE";
+          }
+        }
+
+        function redirectToRunningServer() {
+          let redirected = false;
+          for (let port = 8080; port <= 8099; port += 1) {
+            const probe = new Image();
+            probe.onload = () => {
+              if (redirected) return;
+              redirected = true;
+              window.location.replace(`http://127.0.0.1:${port}/`);
+            };
+            probe.src = `http://127.0.0.1:${port}/assets/visionshift-health.svg?probe=${Date.now()}`;
+          }
+        }
+
+        if (window.location.protocol === "file:") {
+          showStartupHelp("file");
+          redirectToRunningServer();
+          return;
+        }
+
         const appScript = document.createElement("script");
         appScript.type = "module";
         appScript.src = "./app.js";
+        appScript.addEventListener("error", () => showStartupHelp("module"));
         document.head.appendChild(appScript);
-      }
+      })();
     </script>
   </body>
 </html>

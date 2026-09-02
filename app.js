@@ -1013,8 +1013,8 @@ function render(now) {
 startButton.disabled = true;
 startButton.addEventListener("click", startCamera);
 captureButton.addEventListener("click", captureBackground);
-document.querySelectorAll(".experience-button").forEach((button) => {
-  button.addEventListener("click", () => setExperience(button.dataset.experience));
+window.addEventListener("visionshift:experience", (event) => {
+  setExperience(event.detail?.experience);
 });
 document.querySelectorAll(".color-swatch").forEach((swatch) => {
   swatch.addEventListener("click", () => cycleToColor(swatch.dataset.color));
@@ -1033,5 +1033,5 @@ window.addEventListener("resize", () => {
 });
 
 syncColorSwatches();
-setExperience("effects");
+setExperience(window.VisionShiftShell?.activeExperience ?? "effects");
 loadModels();
