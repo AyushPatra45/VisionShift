@@ -311,8 +311,10 @@ test("START VISION SHIFT.command is executable and delegates to the verified lau
   assert.notEqual(statSync(verifiedLauncher).mode & 0o111, 0, "verified launcher must be executable");
   assert.match(readFileSync(friendlyLauncher, "utf8"), /exec "\$\{0:A:h\}\/Start Gesture Lab\.command"/);
 
-  for (const launcher of [friendlyLauncher, verifiedLauncher]) {
-    const syntax = spawnSync("/bin/zsh", ["-n", launcher], { encoding: "utf8" });
-    assert.equal(syntax.status, 0, syntax.stderr);
+  if (existsSync("/bin/zsh")) {
+    for (const launcher of [friendlyLauncher, verifiedLauncher]) {
+      const syntax = spawnSync("/bin/zsh", ["-n", launcher], { encoding: "utf8" });
+      assert.equal(syntax.status, 0, syntax.stderr);
+    }
   }
 });
