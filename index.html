@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#080a0f" />
+    <meta name="description" content="VisionShift is a private, on-device computer-vision playground with six camera experiences controlled by one hand." />
+    <meta property="og:title" content="VisionShift — One camera. Six realities." />
+    <meta property="og:description" content="Cloak, draw, inspect, learn, and play with real-time hand gestures in your browser." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://ayushpatra45.github.io/VisionShift/assets/visionshift-social.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>VisionShift — Gesture-Controlled Camera Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="VisionShift home">
+          <span class="brand-mark"><span>V</span></span>
+          <span>VISION<span class="brand-accent">SHIFT</span></span>
+        </a>
+        <div class="status" role="status" aria-live="polite"><span class="status-dot"></span><span id="statusText">MODEL LOADING</span></div>
+      </header>
+
+      <nav class="experience-switcher" aria-label="Choose a camera experience">
+        <button class="experience-button active" data-experience="effects" aria-pressed="true">
+          <span class="experience-number">01</span>
+          <span><strong>Reality FX</strong><small>Cloak · glitch · echoes</small></span>
+        </button>
+        <button class="experience-button" data-experience="draw" aria-pressed="false">
+          <span class="experience-number">02</span>
+          <span><strong>Air Canvas</strong><small>Draw without touching</small></span>
+        </button>
+        <button class="experience-button" data-experience="hud" aria-pressed="false">
+          <span class="experience-number">03</span>
+          <span><strong>Hand HUD</strong><small>See what the AI sees</small></span>
+        </button>
+        <button class="experience-button" data-experience="game" aria-pressed="false">
+          <span class="experience-number">04</span>
+          <span><strong>Orb Game</strong><small>Point · pinch · score</small></span>
+        </button>
+        <button class="experience-button" data-experience="sign" aria-pressed="false">
+          <span class="experience-number">05</span>
+          <span><strong>Sign Lab</strong><small>Practice handshapes</small></span>
+        </button>
+        <button class="experience-button" data-experience="pong" aria-pressed="false">
+          <span class="experience-number">06</span>
+          <span><strong>Neon Pong</strong><small>Move · defend · survive</small></span>
+        </button>
+      </nav>
+
+      <section class="hero">
+        <div class="intro">
+          <p class="eyebrow" id="experienceEyebrow">EXPERIENCE 01 / REALITY FX</p>
+          <h1>One camera.<br /><em>Six realities.</em></h1>
+          <p class="lede" id="experienceDescription">Become invisible, fracture the live feed, or leave ghost echoes using only recognizable hand signs.</p>
+          <div class="system-stats" aria-label="Project capabilities">
+            <div><strong>06</strong><span>experiences</span></div>
+            <div><strong>21</strong><span>hand points</span></div>
+            <div><strong>100%</strong><span>on-device</span></div>
+          </div>
+        </div>
+
+        <div class="stage-wrap">
+          <div class="stage" id="stage" data-experience="effects">
+            <video id="webcam" playsinline muted></video>
+            <canvas id="output" aria-label="Interactive live camera output" aria-describedby="stageHelp">Live camera interaction. The controls for the selected experience are described below.</canvas>
+            <p class="sr-only" id="stageHelp">Camera gestures are optional in Neon Pong: use the up and down arrow keys to move, and R to restart.</p>
+            <div class="scanline"></div>
+            <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+            <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+            <div class="stage-label">
+              <span id="stageExperience">REALITY FX / LIVE</span>
+              <span id="fps">-- FPS</span>
+            </div>
+
+            <div class="telemetry" id="telemetry">
+              <span class="telemetry-label">AI READOUT</span>
+              <strong id="gestureReadout" role="status" aria-live="polite">NO HAND</strong>
+              <small id="gestureDetail">Show one hand to the camera</small>
+            </div>
+
+            <div class="draw-toolbar" id="drawToolbar" aria-label="Air Canvas colors">
+              <span class="draw-tool-label">INK</span>
+              <button class="color-swatch active" data-color="#c8ff42" style="--swatch:#c8ff42" aria-label="Acid green" aria-pressed="true"></button>
+              <button class="color-swatch" data-color="#55ddff" style="--swatch:#55ddff" aria-label="Electric blue" aria-pressed="false"></button>
+              <button class="color-swatch" data-color="#ff4f9a" style="--swatch:#ff4f9a" aria-label="Hot pink" aria-pressed="false"></button>
+              <button class="color-swatch" data-color="#fff4d6" style="--swatch:#fff4d6" aria-label="Warm white" aria-pressed="false"></button>
+            </div>
+
+            <div class="game-score" id="gameScore" aria-live="polite" aria-atomic="true">
+              <span><b id="primaryScoreLabel">SCORE</b> <strong id="scoreValue">0</strong></span>
+              <span><b id="secondaryScoreLabel">STREAK</b> <strong id="streakValue">0</strong></span>
+            </div>
+
+            <div class="sign-challenge" id="signChallenge">
+              <span class="sign-label">TARGET HANDSHAPE</span>
+              <strong id="signTarget">B</strong>
+              <small id="signHint">Four fingers up · thumb tucked</small>
+              <div class="sign-progress"><span id="signProgress"></span></div>
+              <em id="signScore">0 / 5 MATCHED</em>
+            </div>
+            <span class="sr-only" id="signAnnouncement" role="status" aria-live="polite"></span>
+
+            <div class="mode-chip" id="modeChip" role="status" aria-live="polite">STANDBY</div>
+            <div class="permission-panel" id="permissionPanel">
+              <div class="orb"><span></span></div>
+              <h2>Enter the interaction lab</h2>
+              <p>Your camera is processed locally in this browser. Frames are never uploaded.</p>
+              <button id="startButton" disabled>Enable camera <span>&rarr;</span></button>
+              <small id="loadNote">Loading hand tracking + person mask…</small>
+            </div>
+          </div>
+
+          <div class="capture-row" id="captureRow">
+            <button class="capture-button" id="captureButton" disabled>
+              <span class="capture-icon"></span>
+              Capture empty background
+            </button>
+            <p>For cloaking, step out of frame, wait two seconds, then capture the clean scene.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="control-deck" aria-labelledby="controlsTitle">
+        <div class="section-heading">
+          <div><p class="section-label">CONTROL MANUAL</p><h2 id="controlsTitle">How this mode works</h2></div>
+          <p>Hold deliberate gestures for a beat. Fast accidental poses are filtered out.</p>
+        </div>
+
+        <div class="control-panel active" data-experience-panel="effects">
+          <div class="gesture-grid">
+            <article class="gesture-card" data-mode="invisible"><span class="key">01</span><span class="hand">✋</span><div><h3>Open palm</h3><p>Seamless cloak</p></div></article>
+            <article class="gesture-card" data-mode="glitch"><span class="key">02</span><span class="hand">✊</span><div><h3>Closed fist</h3><p>Reality glitch</p></div></article>
+            <article class="gesture-card" data-mode="echo"><span class="key">03</span><span class="hand">✌️</span><div><h3>Victory</h3><p>Ghost echoes</p></div></article>
+            <article class="gesture-card" data-mode="normal"><span class="key">04</span><span class="hand">☝️</span><div><h3>Point up</h3><p>Reset reality</p></div></article>
+          </div>
+        </div>
+
+        <div class="control-panel" data-experience-panel="draw">
+          <div class="gesture-grid">
+            <article class="gesture-card"><span class="key">01</span><span class="hand">🤏</span><div><h3>Pinch + move</h3><p>Draw a line</p></div></article>
+            <article class="gesture-card"><span class="key">02</span><span class="hand">✋</span><div><h3>Open palm</h3><p>Erase under fingertip</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">✌️</span><div><h3>Victory</h3><p>Cycle ink color</p></div></article>
+            <article class="gesture-card"><span class="key">04</span><span class="hand">✊</span><div><h3>Hold fist</h3><p>Clear the canvas</p></div></article>
+          </div>
+        </div>
+
+        <div class="control-panel" data-experience-panel="hud">
+          <div class="gesture-grid gesture-grid-three">
+            <article class="gesture-card"><span class="key">01</span><span class="hand">🖐️</span><div><h3>Show one hand</h3><p>Track 21 landmarks</p></div></article>
+            <article class="gesture-card"><span class="key">02</span><span class="hand">↔</span><div><h3>Move in 3D</h3><p>Inspect joints + depth</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">✌️</span><div><h3>Try gestures</h3><p>See label + confidence</p></div></article>
+          </div>
+        </div>
+
+        <div class="control-panel" data-experience-panel="game">
+          <div class="gesture-grid gesture-grid-three">
+            <article class="gesture-card"><span class="key">01</span><span class="hand">☝️</span><div><h3>Aim fingertip</h3><p>Move over the orb</p></div></article>
+            <article class="gesture-card"><span class="key">02</span><span class="hand">🤏</span><div><h3>Pinch</h3><p>Burst + score</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">✊</span><div><h3>Hold fist</h3><p>Reset the run</p></div></article>
+          </div>
+        </div>
+
+        <div class="control-panel" data-experience-panel="sign">
+          <div class="gesture-grid gesture-grid-three">
+            <article class="gesture-card"><span class="key">01</span><span class="hand">🤟</span><div><h3>Match the target</h3><p>Copy the shown static handshape</p></div></article>
+            <article class="gesture-card"><span class="key">02</span><span class="hand">⏱</span><div><h3>Hold steady</h3><p>Keep the match for one second</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">🖐️</span><div><h3>Five-shape lesson</h3><p>B · I · L · Y · I love you</p></div></article>
+          </div>
+          <p class="module-note"><strong>Learning note:</strong> This is a limited static-handshape practice tool, not a sign-language translator. Full sign languages also use movement, orientation, facial expression, grammar, and often two hands.</p>
+        </div>
+
+        <div class="control-panel" data-experience-panel="pong">
+          <div class="gesture-grid gesture-grid-three">
+            <article class="gesture-card"><span class="key">01</span><span class="hand">🖐️</span><div><h3>Move your hand</h3><p>Palm or arrow keys move paddle</p></div></article>
+            <article class="gesture-card"><span class="key">02</span><span class="hand">⚡</span><div><h3>Return the ball</h3><p>Each hit raises speed + score</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">✊</span><div><h3>Hold fist or R</h3><p>Reset score and lives</p></div></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="pipeline" aria-labelledby="pipelineTitle">
+        <div class="section-heading pipeline-heading">
+          <div><p class="section-label">UNDER THE HOOD</p><h2 id="pipelineTitle">One vision pipeline, six outputs</h2></div>
+          <p>Every experience reuses the same camera analysis instead of running a separate detector.</p>
+        </div>
+        <div class="pipeline-grid">
+          <article><span>01</span><h3>Camera frame</h3><p>The browser reads a live frame after you grant permission.</p></article>
+          <article><span>02</span><h3>On-device AI</h3><p>MediaPipe predicts a gesture, handedness, and 21 normalized hand landmarks.</p></article>
+          <article><span>03</span><h3>Interaction engine</h3><p>Stable signs, fingertip position, and pinch distance become controls.</p></article>
+          <article><span>04</span><h3>Canvas renderer</h3><p>The selected module composites effects, ink, diagnostics, lessons, or gameplay at video speed.</p></article>
+        </div>
+      </section>
+    </main>
+
+    <footer><span>MEDIAPIPE × CANVAS × LOCAL AI</span><span>NO UPLOADS · NO CONTROLLER · JUST YOUR HAND</span></footer>
+    <script>
+      if (window.location.protocol === "file:") {
+        window.addEventListener("DOMContentLoaded", () => {
+          const note = document.querySelector("#loadNote");
+          const status = document.querySelector(".status");
+          const statusText = document.querySelector("#statusText");
+          note.innerHTML = 'This app cannot run as a file. Start it with <strong>Start Gesture Lab.command</strong> or <strong>npm start</strong>.';
+          status.classList.add("error");
+          statusText.textContent = "LOCAL SERVER REQUIRED";
+        });
+      } else {
+        const appScript = document.createElement("script");
+        appScript.type = "module";
+        appScript.src = "./app.js";
+        document.head.appendChild(appScript);
+      }
+    </script>
+  </body>
+</html>
