@@ -53,6 +53,15 @@ test("Sign Lab has a dedicated phone layout", () => {
   assert.match(css, /@media \(max-width: 600px\)[\s\S]*\.stage\[data-experience="sign"\] \.telemetry/);
 });
 
+test("Pages workflow keeps CI green until repository Pages is enabled", () => {
+  const workflow = readSource(".github/workflows/pages.yml");
+
+  assert.match(workflow, /id: pages-status/);
+  assert.match(workflow, /pages-enabled: \$\{\{ steps\.pages-status\.outputs\.enabled \}\}/);
+  assert.match(workflow, /if: steps\.pages-status\.outputs\.enabled == 'true'/);
+  assert.match(workflow, /if: needs\.build\.outputs\.pages-enabled == 'true'/);
+});
+
 test("macOS launcher verifies this app before reusing a local server", () => {
   const launcher = readSource("Start Gesture Lab.command");
   const html = readSource("index.html");
