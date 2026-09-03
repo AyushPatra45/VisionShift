@@ -39,6 +39,20 @@ git switch -c palak/feature-name
 
 Then update the active work board on that branch, commit the claim with the work, and tell the team which files are being changed. For highly contested work, create a small coordination pull request first or use a GitHub Issue assigned to the contributor.
 
+## If work already exists locally
+
+Palak and Ayana should run `git status` **before pulling**. If either person already has modified or untracked files, first preserve that work on a personal branch:
+
+```bash
+git status
+git switch -c palak/current-work
+git add <only-the-files-you-changed>
+git commit -m "Describe the current work"
+git push -u origin palak/current-work
+```
+
+Use `ayana/current-work` for Ayana. After the branch is safely pushed, record it in the active work board and open a pull request. Do not copy those files manually into `main`, and do not run a destructive reset to make the pull succeed.
+
 ## Before opening a pull request
 
 ```bash
