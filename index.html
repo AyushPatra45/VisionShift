@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#080a0f" />
-    <meta name="description" content="VisionShift is a private, on-device computer-vision playground with six camera experiences controlled by one hand." />
-    <meta property="og:title" content="VisionShift — One camera. Six realities." />
-    <meta property="og:description" content="Cloak, draw, inspect, learn, and play with real-time hand gestures in your browser." />
+    <meta name="description" content="VisionShift is a private, on-device computer-vision playground with seven camera experiences controlled by one hand." />
+    <meta property="og:title" content="VisionShift — One camera. Seven realities." />
+    <meta property="og:description" content="Cloak, draw, inspect, learn, read personal signs, and play with real-time hand gestures in your browser." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://ayushpatra45.github.io/VisionShift/assets/visionshift-social.png" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -51,15 +51,19 @@
           <span class="experience-number">06</span>
           <span><strong>Neon Pong</strong><small>Move · defend · survive</small></span>
         </button>
+        <button class="experience-button" data-experience="reader" aria-pressed="false">
+          <span class="experience-number">07</span>
+          <span><strong>Sign Reader</strong><small>Teach · read · speak</small></span>
+        </button>
       </nav>
 
       <section class="hero">
         <div class="intro">
           <p class="eyebrow" id="experienceEyebrow">EXPERIENCE 01 / REALITY FX</p>
-          <h1>One camera.<br /><em>Six realities.</em></h1>
+          <h1>One camera.<br /><em>Seven realities.</em></h1>
           <p class="lede" id="experienceDescription">Become invisible, fracture the live feed, or leave ghost echoes using only recognizable hand signs.</p>
           <div class="system-stats" aria-label="Project capabilities">
-            <div><strong>06</strong><span>experiences</span></div>
+            <div><strong>07</strong><span>experiences</span></div>
             <div><strong>21</strong><span>hand points</span></div>
             <div><strong>100%</strong><span>on-device</span></div>
           </div>
@@ -105,6 +109,14 @@
               <em id="signScore">0 / 5 MATCHED</em>
             </div>
             <span class="sr-only" id="signAnnouncement" role="status" aria-live="polite"></span>
+
+            <div class="reader-output" id="readerOutput">
+              <span class="reader-label">PERSONAL SIGN READER</span>
+              <strong id="readerDetected">TEACH A SIGN BELOW</strong>
+              <small id="readerConfidence">PERSONAL TRAINING STAYS ON THIS DEVICE</small>
+              <p id="readerTranscript">Your recognized personal signs will appear here.</p>
+            </div>
+            <span class="sr-only" id="readerAnnouncement" role="status" aria-live="polite"></span>
 
             <div class="mode-chip" id="modeChip" role="status" aria-live="polite">STANDBY</div>
             <div class="permission-panel" id="permissionPanel">
@@ -182,11 +194,29 @@
             <article class="gesture-card"><span class="key">03</span><span class="hand">✊</span><div><h3>Hold fist or R</h3><p>Reset score and lives</p></div></article>
           </div>
         </div>
+
+        <div class="control-panel" data-experience-panel="reader">
+          <div class="reader-console">
+            <label for="readerLabelInput"><span>WHAT SHOULD THIS SIGN MEAN?</span><input id="readerLabelInput" maxlength="40" placeholder="Example: Water or I need help" autocomplete="off" /></label>
+            <button type="button" id="teachSignButton" disabled>Teach this sign</button>
+            <button type="button" id="undoReaderButton" disabled>Undo word</button>
+            <button type="button" id="speakReaderButton" disabled>Speak phrase</button>
+            <button type="button" id="clearReaderButton" disabled>Clear phrase</button>
+            <button type="button" id="forgetSignsButton" disabled>Forget learned signs</button>
+          </div>
+          <p class="reader-library" id="readerLibrary">NO PERSONAL SIGNS LEARNED YET</p>
+          <div class="gesture-grid gesture-grid-three reader-steps">
+            <article class="gesture-card"><span class="key">01</span><span class="hand">⌨️</span><div><h3>Name the meaning</h3><p>Type a word or short phrase</p></div></article>
+            <article class="gesture-card"><span class="key">02</span><span class="hand">🤟</span><div><h3>Teach one pose</h3><p>Hold a static one-hand sign steadily</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">🔊</span><div><h3>Read and speak</h3><p>Lower your hand between phrases</p></div></article>
+          </div>
+          <p class="module-note"><strong>Scope:</strong> This is a personal, signer-specific static-pose reader—not an ASL, ISL, or universal sign-language translator. It cannot understand motion, two-handed signs, facial grammar, or continuous sentences. Learned poses stay in this browser.</p>
+        </div>
       </section>
 
       <section class="pipeline" aria-labelledby="pipelineTitle">
         <div class="section-heading pipeline-heading">
-          <div><p class="section-label">UNDER THE HOOD</p><h2 id="pipelineTitle">One vision pipeline, six outputs</h2></div>
+          <div><p class="section-label">UNDER THE HOOD</p><h2 id="pipelineTitle">One vision pipeline, seven outputs</h2></div>
           <p>Every experience reuses the same camera analysis instead of running a separate detector.</p>
         </div>
         <div class="pipeline-grid">
@@ -231,6 +261,11 @@
             eyebrow: "EXPERIENCE 06 / NEON PONG",
             stage: "NEON PONG / LIVE",
             description: "Move your palm to defend the neon wall. Every return gets faster; three misses end the run.",
+          },
+          reader: {
+            eyebrow: "EXPERIENCE 07 / PERSONAL SIGN READER",
+            stage: "SIGN READER / ON-DEVICE",
+            description: "Teach the browser your own static one-hand signs, turn stable matches into a text phrase, and speak it aloud.",
           },
         });
 

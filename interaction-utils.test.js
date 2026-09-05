@@ -1,6 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createTarget, distance2d, hitTest, isPinching, toCanvasPoint } from "./interaction-utils.js";
+import {
+  createTarget,
+  distance2d,
+  hitTest,
+  isPinching,
+  PinchGate,
+  smoothCanvasPoint,
+  toCanvasPoint,
+} from "./interaction-utils.js";
 
 test("computes landmark distance and pinch state", () => {
   const landmarks = Array.from({ length: 21 }, () => ({ x: 0, y: 0 }));
@@ -23,6 +31,33 @@ test("normalizes pinch distance to hand size", () => {
   const far = near.map(({ x, y }) => ({ x: x * .5, y: y * .5 }));
   assert.equal(isPinching(near), true);
   assert.equal(isPinching(far), true);
+});
+
+test("keeps a drawing pinch through brief tracking noise and releases deliberately", () => {
+  const pinched = Array.from({ length: 21 }, () => ({ x: 0, y: 0 }));
+  pinched[5] = { x: 0.35, y: 0.6 };
+  pinched[17] = { x: 0.65, y: 0.6 };
+  pinched[4] = { x: 0.48, y: 0.4 };
+  pinched[8] = { x: 0.54, y: 0.4 };
+  const open = pinched.map((point) => ({ ...point }));
+  open[8] = { x: 0.7, y: 0.4 };
+  const gate = new PinchGate({ releaseDelayMs: 90, lostDelayMs: 150 });
+
+  assert.equal(gate.update(pinched, 1000), true);
+  assert.equal(gate.update(null, 1080), true);
+  assert.equal(gate.update(pinched, 1110), true);
+  assert.equal(gate.update(open, 1140), true);
+  assert.equal(gate.update(open, 1200), true);
+  assert.equal(gate.update(open, 1231), false);
+});
+
+test("adapts point smoothing to movement speed", () => {
+  const previous = { x: 0, y: 0 };
+  const slow = smoothCanvasPoint(previous, { x: 2, y: 0 }, 16);
+  const fast = smoothCanvasPoint(previous, { x: 30, y: 0 }, 16);
+  assert.ok(slow.x > 0 && slow.x < 2);
+  assert.ok(fast.x > slow.x);
+  assert.ok(fast.x <= 30);
 });
 
 test("maps normalized landmarks into canvas coordinates", () => {

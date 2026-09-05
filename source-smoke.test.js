@@ -8,7 +8,7 @@ import vm from "node:vm";
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 const readSource = (path) => readFileSync(resolve(projectRoot, path), "utf8");
-const experiences = ["effects", "draw", "hud", "game", "sign", "pong"];
+const experiences = ["effects", "draw", "hud", "game", "sign", "pong", "reader"];
 
 function extractInlineScript(html, marker) {
   const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
@@ -67,24 +67,27 @@ test("index exposes exactly one button and control panel for every experience", 
   assert.deepEqual(panels, experiences);
 });
 
-test("app imports and routes the Sign Lab and Neon Pong modules", () => {
+test("app imports and routes the Sign Lab, Neon Pong, and Sign Reader modules", () => {
   const app = readSource("app.js");
 
   assert.match(app, /from\s+["']\.\/sign-utils\.js["']/);
   assert.match(app, /from\s+["']\.\/pong-utils\.js["']/);
+  assert.match(app, /from\s+["']\.\/sign-reader-utils\.js["']/);
   assert.match(app, /\bsign\s*:\s*\{/);
   assert.match(app, /\bpong\s*:\s*\{/);
   assert.match(app, /activeExperience\s*===\s*["']sign["']/);
   assert.match(app, /activeExperience\s*===\s*["']pong["']/);
+  assert.match(app, /activeExperience\s*===\s*["']reader["']/);
   assert.match(app, /window\.addEventListener\(["']visionshift:experience["']/);
   assert.match(app, /setExperience\(event\.detail\?\.experience\)/);
 });
 
-test("static build includes the Sign Lab and Neon Pong utility assets", () => {
+test("static build includes the experience utility assets", () => {
   const build = readSource("scripts/build.mjs");
 
   assert.match(build, /["']sign-utils\.js["']/);
   assert.match(build, /["']pong-utils\.js["']/);
+  assert.match(build, /["']sign-reader-utils\.js["']/);
 });
 
 test("high-frequency vision output uses discrete accessible announcements", () => {
@@ -103,6 +106,26 @@ test("Sign Lab has a dedicated phone layout", () => {
 
   assert.match(css, /@media \(max-width: 600px\)[\s\S]*\.stage\[data-experience="sign"\] \.sign-challenge/);
   assert.match(css, /@media \(max-width: 600px\)[\s\S]*\.stage\[data-experience="sign"\] \.telemetry/);
+});
+
+test("Personal Sign Reader exposes training controls and a phone layout", () => {
+  const html = readSource("index.html");
+  const css = readSource("styles.css");
+
+  for (const id of ["readerLabelInput", "teachSignButton", "undoReaderButton", "speakReaderButton", "clearReaderButton", "forgetSignsButton"]) {
+    assert.match(html, new RegExp(`id=["']${id}["']`));
+  }
+  assert.match(html, /signer-specific static-pose reader/);
+  assert.match(css, /@media \(max-width: 600px\)[\s\S]*\.stage\[data-experience="reader"\] \.reader-output/);
+});
+
+test("Air Canvas uses a latched pinch gate and continuous curved strokes", () => {
+  const app = readSource("app.js");
+
+  assert.match(app, /new PinchGate\(/);
+  assert.match(app, /smoothCanvasPoint\(/);
+  assert.match(app, /quadraticCurveTo\(/);
+  assert.match(app, /else if \(!point && drawingActive\)/);
 });
 
 test("Pages workflow keeps CI green until repository Pages is enabled", () => {
@@ -232,7 +255,7 @@ test("hosted module failure keeps navigation available and offers a working relo
   assert.equal(reloads, 1);
 });
 
-test("all six buttons independently route the no-module shell", () => {
+test("all experience buttons independently route the no-module shell", () => {
   const html = readSource("index.html");
   const shellScript = extractInlineScript(html, "window.VisionShiftShell");
   const buttons = experiences.map((experience) => createFakeElement({ experience }));

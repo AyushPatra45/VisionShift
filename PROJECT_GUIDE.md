@@ -31,7 +31,7 @@ The cloak is reference-based, not scene reconstruction: the camera must stay fix
 
 ### 02 · Air Canvas
 
-The distance between landmark 4 (thumb tip) and landmark 8 (index tip) determines whether the hand is pinching. A pinch paints a smoothed line onto a persistent offscreen canvas. An open palm switches that canvas to `destination-out` compositing to erase. Victory cycles the palette, and a held fist clears the drawing.
+The distance between landmark 4 (thumb tip) and landmark 8 (index tip), normalized by palm width, determines whether the hand is pinching. `PinchGate` uses hysteresis—different engage and release thresholds—and short release/lost-tracking grace periods, so one noisy frame does not cut a stroke. `smoothCanvasPoint` applies motion-adaptive exponential smoothing, and midpoint quadratic curves join samples on a persistent offscreen canvas. Together these prevent the dotted, broken handwriting produced by raw per-frame line segments. An open palm switches that canvas to `destination-out` compositing to erase. Victory cycles the palette, and a held fist clears the drawing.
 
 ### 03 · Hand HUD
 
@@ -53,17 +53,26 @@ The tracked hand position controls a vertically constrained paddle. `pong-utils.
 
 Frame-time normalization keeps movement reasonably consistent across different camera/render frame rates, while speed and paddle bounds remain in canvas coordinates.
 
+### 07 · Personal Sign Reader
+
+The reader is a user-trained static-pose recognizer. `sign-reader-utils.js` translates each hand to a wrist-relative coordinate system, normalizes its size by palm width and in-plane rotation by the wrist-to-middle-finger axis, and averages 24 training samples into one 63-value pose prototype. Live poses are compared with the locally saved prototypes using root-mean-square distance, including a mirrored comparison so either hand can reproduce a learned pose. A match must remain stable before its user-supplied label is appended to the transcript, and the hand must be lowered before the same label can repeat.
+
+The learned library is capped at 12 entries and stored in browser `localStorage`; camera frames and landmarks are not uploaded. Speech uses the browser's built-in speech synthesis when available.
+
+This feature is intentionally named **Personal Sign Reader**, not sign-language translator. It recognizes only signer-specific static poses deliberately taught to it. It cannot interpret ASL, ISL, another natural sign language, motion, two-hand relationships, facial/non-manual markers, grammar, or continuous discourse. Building a real translator requires language-specific sequence data, temporal models, signer-diverse evaluation, and collaboration with Deaf communities.
+
 ## File map
 
 | File | Responsibility |
 | --- | --- |
-| `index.html` | Product layout, six-experience picker, controls, status, and explanatory copy |
+| `index.html` | Product layout, seven-experience picker, controls, status, and explanatory copy |
 | `styles.css` | Responsive visual system and experience-specific overlays |
 | `app.js` | Camera lifecycle, MediaPipe models, experience router, state, and renderers |
 | `gesture-state.js` | Stable gesture-to-effect state machine |
 | `cloak-utils.js` | Tested matte and live/captured color-calibration helpers |
-| `interaction-utils.js` | Pinch geometry, landmark mapping, hand connections, and orb collision helpers |
+| `interaction-utils.js` | Pinch hysteresis, adaptive point smoothing, landmark mapping, hand connections, and orb collision helpers |
 | `sign-utils.js` | Static finger-state extraction and Sign Lab pattern classification |
+| `sign-reader-utils.js` | Personal pose normalization, averaging, mirroring, persistence validation, and matching |
 | `pong-utils.js` | Neon Pong ball creation, movement, collision, and game events |
 | `*.test.js` | Unit tests for state and reusable geometry/classification helpers |
 | `models/` | Local gesture-recognition and person-segmentation model assets |
@@ -88,11 +97,11 @@ On macOS, **`START VISION SHIFT.command` is the primary launch path**. It delega
 
 The direct-file page is intentionally a useful recovery screen instead of a silent loading state. It displays the exact launcher name and probes `http://127.0.0.1:8080/` through port `8099` for `assets/visionshift-health.svg`. A successful image probe identifies this project—not merely any process using the port—and redirects to the running app.
 
-Experience selection is wired by the inline shell before the MediaPipe-dependent application module starts. Therefore the six-module navigation continues to work when `app.js`, a model, or its runtime cannot initialize. The camera controls are unavailable in that state, while the visible error panel directs the user to restart with **START VISION SHIFT.command**. This separation makes startup problems diagnosable without leaving the interface frozen on “Loading.”
+Experience selection is wired by the inline shell before the MediaPipe-dependent application module starts. Therefore the seven-module navigation continues to work when `app.js`, a model, or its runtime cannot initialize. The camera controls are unavailable in that state, while the visible error panel directs the user to restart with **START VISION SHIFT.command**. This separation makes startup problems diagnosable without leaving the interface frozen on “Loading.”
 
 ## Build and deployment
 
-`npm run build` recreates `dist/`, copies every browser module (including `sign-utils.js` and `pong-utils.js`), copies both local models, vendors `@mediapipe/tasks-vision`, and writes `.nojekyll` for GitHub Pages.
+`npm run build` recreates `dist/`, copies every browser module (including `sign-utils.js`, `sign-reader-utils.js`, and `pong-utils.js`), copies both local models, vendors `@mediapipe/tasks-vision`, and writes `.nojekyll` for GitHub Pages.
 
 The Pages workflow runs `npm ci`, `npm test`, and `npm run build` before uploading `dist/`. The GitHub repository must have **Settings → Pages → Source** set to **GitHub Actions**. Deployed webcam access depends on the HTTPS origin supplied by GitHub Pages.
 

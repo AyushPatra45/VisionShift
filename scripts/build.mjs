@@ -12,6 +12,7 @@ const files = [
   "cloak-utils.js",
   "interaction-utils.js",
   "sign-utils.js",
+  "sign-reader-utils.js",
   "pong-utils.js",
 ];
 

@@ -1,8 +1,8 @@
 # VisionShift
 
-![VisionShift — six camera experiences controlled with one hand](./assets/visionshift-social.png)
+![VisionShift — seven camera experiences controlled with one hand](./assets/visionshift-social.png)
 
-VisionShift is a browser-based computer-vision playground with six live camera experiences controlled by one hand. A shared MediaPipe pipeline recognizes gestures and tracks 21 hand landmarks locally in the browser; camera frames are not uploaded by this project.
+VisionShift is a browser-based computer-vision playground with seven live camera experiences controlled by one hand. A shared MediaPipe pipeline recognizes gestures and tracks 21 hand landmarks locally in the browser; camera frames are not uploaded by this project.
 
 ## Experiences and controls
 
@@ -26,6 +26,8 @@ For the cleanest cloak, keep the camera fixed, step fully out of frame, capture 
 | Victory sign | Cycle through the ink palette |
 | Hold a closed fist | Clear the canvas |
 
+The pinch detector uses separate start/release thresholds, tolerates a short tracking dropout, and draws adaptive quadratic curves instead of separate frame-to-frame segments. This keeps handwriting connected while filtering normal fingertip jitter. For best results, keep the whole hand visible, use even front lighting, and move at a deliberate pace.
+
 ### 03 · Hand HUD
 
 Show one hand to inspect all 21 tracked landmarks, their connection graph, fingertip positions, handedness, gesture label, and recognition confidence in real time.
@@ -43,6 +45,12 @@ Sign Lab is a small handshape-practice experiment. It is **not** a sign-language
 ### 06 · Neon Pong
 
 Move your hand vertically to control the neon paddle and return the ball. Each hit raises the score and gradually increases the pace; a miss costs a life. Hold a closed fist to restart the game.
+
+### 07 · Personal Sign Reader
+
+The reader lets one person teach the browser their own **static, one-hand poses** and map each pose to a word or short phrase. Type a meaning, hold the pose while choosing **Teach this sign**, then lower the hand. Showing a learned pose steadily adds its label to a transcript; the transcript can be edited, cleared, or spoken aloud. Up to 12 learned signs are stored only in that browser's local storage.
+
+This is a small personalized communication experiment, **not an ASL/ISL translator, interpreter, or accessibility service**. It does not understand motion, two-handed signs, signing location, facial expression, grammar, or continuous signing. A genuine continuous translator is a spatiotemporal language-model problem, as illustrated by the [Sign Language Transformers research](https://openaccess.thecvf.com/content_CVPR_2020/html/Camgoz_Sign_Language_Transformers_Joint_End-to-End_Sign_Language_Recognition_and_Translation_CVPR_2020_paper.html), and requires appropriate language-specific datasets plus evaluation with Deaf signers.
 
 ## Run locally
 
@@ -106,7 +114,8 @@ Webcam frame
             ├── Hand HUD    → landmark connection renderer
             ├── Orb Game    → fingertip collision + pinch state
             ├── Sign Lab    → finger-state patterns + hold progress
-            └── Neon Pong   → palm-driven paddle + ball physics
+            ├── Neon Pong   → palm-driven paddle + ball physics
+            └── Sign Reader → learned normalized poses + local transcript
 ```
 
 One recognition result is shared across all experiences, so switching modules does not load another hand model. Rendering and interaction happen with Canvas 2D and vanilla JavaScript modules.
@@ -121,6 +130,7 @@ See [PROJECT_GUIDE.md](./PROJECT_GUIDE.md) for the internal state, module logic,
 - The app tracks one hand. Gestures that overlap the face/body or leave the frame may be missed.
 - The cloak cannot reconstruct what the camera never saw; it uses a previously captured empty-scene reference and works best with a stationary camera and steady lighting.
 - Sign Lab recognizes only five simplified, static finger-state patterns and has the important language/accessibility limitations described above.
+- Personal Sign Reader recognizes only signer-specific static poses that the current user teaches it; it is not a sign-language translator.
 - Webcam access is available only on secure origins (HTTPS) or localhost.
 
 ## Technology

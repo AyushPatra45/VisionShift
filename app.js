@@ -11,6 +11,8 @@ import {
   HAND_CONNECTIONS,
   hitTest,
   isPinching,
+  PinchGate,
+  smoothCanvasPoint,
   toCanvasPoint,
 } from "./interaction-utils.js";
 import {
@@ -19,6 +21,12 @@ import {
   getFingerStates,
   getSignGuidance,
 } from "./sign-utils.js";
+import {
+  averageHandPoses,
+  classifyLearnedPose,
+  normalizeHandPose,
+  sanitizeReaderLibrary,
+} from "./sign-reader-utils.js";
 import { advancePong, createPongBall } from "./pong-utils.js";
 
 const MODEL_URL = "./models/gesture_recognizer.task";
@@ -28,6 +36,10 @@ const GESTURE_CONFIDENCE = 0.68;
 const SIGN_HOLD_MS = 900;
 const RECOGNITION_INTERVAL_MS = 32;
 const SEGMENTATION_INTERVAL_MS = 72;
+const READER_STORAGE_KEY = "visionshift.personal-sign-reader.v1";
+const READER_CAPTURE_SAMPLES = 24;
+const READER_HOLD_MS = 760;
+const READER_UNLOCK_MS = 420;
 
 const EXPERIENCE_META = Object.freeze({
   effects: {
@@ -59,6 +71,11 @@ const EXPERIENCE_META = Object.freeze({
     eyebrow: "EXPERIENCE 06 / NEON PONG",
     stage: "NEON PONG / LIVE",
     description: "Move your palm to defend the neon wall. Every return gets faster; three misses end the run.",
+  },
+  reader: {
+    eyebrow: "EXPERIENCE 07 / PERSONAL SIGN READER",
+    stage: "SIGN READER / ON-DEVICE",
+    description: "Teach the browser your own static one-hand signs, turn stable matches into a text phrase, and speak it aloud.",
   },
 });
 
@@ -104,6 +121,17 @@ const signHint = document.querySelector("#signHint");
 const signProgress = document.querySelector("#signProgress");
 const signScore = document.querySelector("#signScore");
 const signAnnouncement = document.querySelector("#signAnnouncement");
+const readerDetected = document.querySelector("#readerDetected");
+const readerConfidence = document.querySelector("#readerConfidence");
+const readerTranscript = document.querySelector("#readerTranscript");
+const readerLibrary = document.querySelector("#readerLibrary");
+const readerAnnouncement = document.querySelector("#readerAnnouncement");
+const readerLabelInput = document.querySelector("#readerLabelInput");
+const teachSignButton = document.querySelector("#teachSignButton");
+const undoReaderButton = document.querySelector("#undoReaderButton");
+const clearReaderButton = document.querySelector("#clearReaderButton");
+const speakReaderButton = document.querySelector("#speakReaderButton");
+const forgetSignsButton = document.querySelector("#forgetSignsButton");
 
 let recognizer;
 let segmenter;
@@ -137,7 +165,10 @@ const drawState = {
   colorIndex: 0,
   colors: ["#c8ff42", "#55ddff", "#ff4f9a", "#fff4d6"],
   previousPoint: null,
+  previousMidpoint: null,
   smoothedPoint: null,
+  lastPointAt: 0,
+  pinchGate: new PinchGate(),
   victoryLatched: false,
   fistStartedAt: 0,
   clearLatched: false,
@@ -159,6 +190,18 @@ const signState = {
   detected: null,
   holdStartedAt: 0,
   completeUntil: 0,
+};
+
+const readerState = {
+  library: [],
+  transcript: [],
+  training: null,
+  candidate: null,
+  candidateStartedAt: 0,
+  detected: null,
+  confidence: 0,
+  locked: false,
+  unmatchedStartedAt: 0,
 };
 
 const pong = {
@@ -258,6 +301,7 @@ async function startCamera() {
     panel.classList.add("hidden");
     stage.classList.add("camera-on");
     captureButton.disabled = !segmenter;
+    teachSignButton.disabled = false;
     requestAnimationFrame(render);
   } catch (error) {
     clearTimeout(permissionReminder);
@@ -330,11 +374,16 @@ function setExperience(nextExperience) {
   stageExperience.textContent = meta.stage;
   captureRow.classList.toggle("hidden", nextExperience !== "effects");
   drawState.previousPoint = null;
+  drawState.previousMidpoint = null;
   drawState.smoothedPoint = null;
+  drawState.lastPointAt = 0;
+  drawState.pinchGate.reset();
   resetEchoHistory();
   if (previousExperience !== nextExperience) {
     signState.holdStartedAt = 0;
     signState.detected = null;
+    cancelReaderTraining();
+    resetReaderCandidate();
   }
   document.querySelectorAll(".experience-button").forEach((button) => {
     const selected = button.dataset.experience === nextExperience;
@@ -561,23 +610,82 @@ function renderEffects(now) {
   else drawNormal();
 }
 
+function finishDrawingStroke() {
+  if (drawState.previousPoint && drawState.previousMidpoint) {
+    drawingCtx.save();
+    drawingCtx.globalCompositeOperation = "source-over";
+    drawingCtx.strokeStyle = drawState.color;
+    drawingCtx.lineWidth = 8;
+    drawingCtx.lineCap = "round";
+    drawingCtx.beginPath();
+    drawingCtx.moveTo(drawState.previousMidpoint.x, drawState.previousMidpoint.y);
+    drawingCtx.lineTo(drawState.previousPoint.x, drawState.previousPoint.y);
+    drawingCtx.stroke();
+    drawingCtx.restore();
+  }
+  drawState.previousPoint = null;
+  drawState.previousMidpoint = null;
+}
+
+function drawSmoothStroke(point) {
+  drawingCtx.save();
+  drawingCtx.globalCompositeOperation = "source-over";
+  drawingCtx.strokeStyle = drawState.color;
+  drawingCtx.fillStyle = drawState.color;
+  drawingCtx.lineWidth = 8;
+  drawingCtx.lineCap = "round";
+  drawingCtx.lineJoin = "round";
+
+  if (drawState.previousPoint) {
+    const midpoint = {
+      x: (drawState.previousPoint.x + point.x) / 2,
+      y: (drawState.previousPoint.y + point.y) / 2,
+    };
+    drawingCtx.beginPath();
+    drawingCtx.moveTo(
+      drawState.previousMidpoint?.x ?? drawState.previousPoint.x,
+      drawState.previousMidpoint?.y ?? drawState.previousPoint.y,
+    );
+    drawingCtx.quadraticCurveTo(
+      drawState.previousPoint.x,
+      drawState.previousPoint.y,
+      midpoint.x,
+      midpoint.y,
+    );
+    drawingCtx.stroke();
+    drawState.previousMidpoint = midpoint;
+  } else {
+    drawingCtx.beginPath();
+    drawingCtx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+    drawingCtx.fill();
+    drawState.previousMidpoint = { ...point };
+  }
+
+  drawState.previousPoint = { ...point };
+  drawingCtx.restore();
+}
+
 function renderAirCanvas(now) {
   drawNormal();
   ctx.fillStyle = "rgba(4,7,10,.12)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const point = latestLandmarks?.[8] ? toCanvasPoint(latestLandmarks[8], canvas.width, canvas.height) : null;
-  const pinching = isPinching(latestLandmarks);
+  const victory = hasConfidentGesture("Victory");
+  const fist = hasConfidentGesture("Closed_Fist");
+  const erasing = hasConfidentGesture("Open_Palm");
+  let drawingActive = drawState.pinchGate.update(latestLandmarks, now);
 
   if (point) {
-    drawState.smoothedPoint = drawState.smoothedPoint
-      ? { x: drawState.smoothedPoint.x * .58 + point.x * .42, y: drawState.smoothedPoint.y * .58 + point.y * .42 }
-      : point;
-  } else {
+    const elapsed = drawState.lastPointAt ? now - drawState.lastPointAt : 16;
+    drawState.smoothedPoint = smoothCanvasPoint(drawState.smoothedPoint, point, elapsed);
+    drawState.lastPointAt = now;
+  } else if (!drawState.lastPointAt || now - drawState.lastPointAt > drawState.pinchGate.lostDelayMs) {
     drawState.smoothedPoint = null;
-    drawState.previousPoint = null;
+    drawState.lastPointAt = 0;
+    finishDrawingStroke();
   }
 
-  if (hasConfidentGesture("Victory")) {
+  if (victory) {
     if (!drawState.victoryLatched) {
       drawState.colorIndex = (drawState.colorIndex + 1) % drawState.colors.length;
       drawState.color = drawState.colors[drawState.colorIndex];
@@ -588,7 +696,7 @@ function renderAirCanvas(now) {
     drawState.victoryLatched = false;
   }
 
-  if (hasConfidentGesture("Closed_Fist")) {
+  if (fist) {
     if (!drawState.fistStartedAt) drawState.fistStartedAt = now;
     if (now - drawState.fistStartedAt > 850 && !drawState.clearLatched) {
       drawingCtx.clearRect(0, 0, drawing.width, drawing.height);
@@ -599,38 +707,32 @@ function renderAirCanvas(now) {
     drawState.clearLatched = false;
   }
 
-  if (drawState.smoothedPoint && pinching) {
-    drawingCtx.globalCompositeOperation = "source-over";
-    drawingCtx.strokeStyle = drawState.color;
-    drawingCtx.fillStyle = drawState.color;
-    drawingCtx.lineWidth = 8;
-    drawingCtx.lineCap = "round";
-    drawingCtx.lineJoin = "round";
-    if (drawState.previousPoint) {
-      drawingCtx.beginPath();
-      drawingCtx.moveTo(drawState.previousPoint.x, drawState.previousPoint.y);
-      drawingCtx.lineTo(drawState.smoothedPoint.x, drawState.smoothedPoint.y);
-      drawingCtx.stroke();
-    } else {
-      drawingCtx.beginPath();
-      drawingCtx.arc(drawState.smoothedPoint.x, drawState.smoothedPoint.y, 4, 0, Math.PI * 2);
-      drawingCtx.fill();
-    }
-    drawState.previousPoint = { ...drawState.smoothedPoint };
-  } else if (drawState.smoothedPoint && hasConfidentGesture("Open_Palm")) {
+  if (victory || fist || erasing) {
+    drawState.pinchGate.reset();
+    drawingActive = false;
+  }
+
+  if (drawState.smoothedPoint && point && drawingActive) {
+    drawSmoothStroke(drawState.smoothedPoint);
+  } else if (drawState.smoothedPoint && point && erasing) {
+    finishDrawingStroke();
     drawingCtx.save();
     drawingCtx.globalCompositeOperation = "destination-out";
     drawingCtx.beginPath();
     drawingCtx.arc(drawState.smoothedPoint.x, drawState.smoothedPoint.y, 30, 0, Math.PI * 2);
     drawingCtx.fill();
     drawingCtx.restore();
-    drawState.previousPoint = null;
+  } else if (!point && drawingActive) {
+    // Keep the curve endpoint briefly so a single missed tracking frame does
+    // not split handwriting into disconnected dashes.
   } else {
-    drawState.previousPoint = null;
+    finishDrawingStroke();
   }
 
   ctx.drawImage(drawing, 0, 0);
-  if (drawState.smoothedPoint) drawPointer(drawState.smoothedPoint, pinching ? drawState.color : "#ffffff", pinching ? 10 : 16);
+  if (drawState.smoothedPoint && point) {
+    drawPointer(drawState.smoothedPoint, drawingActive ? drawState.color : "#ffffff", drawingActive ? 10 : 16);
+  }
 }
 
 function drawLandmarkHud(now, accent = "#c8ff42") {
@@ -824,6 +926,221 @@ function renderSignLab(now) {
   updateSignChallenge(progress);
 }
 
+function loadReaderLibrary() {
+  try {
+    readerState.library = sanitizeReaderLibrary(JSON.parse(localStorage.getItem(READER_STORAGE_KEY) ?? "[]"));
+  } catch {
+    readerState.library = [];
+  }
+  syncReaderUi();
+}
+
+function saveReaderLibrary() {
+  try {
+    localStorage.setItem(READER_STORAGE_KEY, JSON.stringify(readerState.library));
+  } catch {
+    setTextIfChanged(readerAnnouncement, "The learned signs could not be saved in this browser.");
+  }
+}
+
+function resetReaderCandidate() {
+  readerState.candidate = null;
+  readerState.candidateStartedAt = 0;
+  readerState.detected = null;
+  readerState.confidence = 0;
+  readerState.locked = false;
+  readerState.unmatchedStartedAt = 0;
+}
+
+function cancelReaderTraining() {
+  readerState.training = null;
+  if (readerLabelInput) readerLabelInput.disabled = false;
+  if (teachSignButton) teachSignButton.disabled = !video?.srcObject;
+}
+
+function readerSpeechAvailable() {
+  return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+}
+
+function syncReaderUi() {
+  const transcript = readerState.transcript.join(" ");
+  setTextIfChanged(readerTranscript, transcript || "Your recognized personal signs will appear here.");
+  setTextIfChanged(
+    readerLibrary,
+    readerState.library.length
+      ? `LEARNED ${readerState.library.length}/12 · ${readerState.library.map((item) => item.label).join(" · ")}`
+      : "NO PERSONAL SIGNS LEARNED YET",
+  );
+  undoReaderButton.disabled = readerState.transcript.length === 0;
+  clearReaderButton.disabled = readerState.transcript.length === 0;
+  speakReaderButton.disabled = readerState.transcript.length === 0 || !readerSpeechAvailable();
+  forgetSignsButton.disabled = readerState.library.length === 0;
+}
+
+function startReaderTraining() {
+  const label = readerLabelInput.value.trim().replace(/\s+/g, " ").slice(0, 40);
+  if (!video.srcObject) {
+    setTextIfChanged(readerAnnouncement, "Enable the camera before teaching a personal sign.");
+    return;
+  }
+  if (!label) {
+    readerLabelInput.focus();
+    setTextIfChanged(readerAnnouncement, "Type the word or phrase this sign should mean.");
+    return;
+  }
+  if (!normalizeHandPose(latestLandmarks)) {
+    setTextIfChanged(readerAnnouncement, "Hold one hand clearly in the camera, then choose Teach this sign.");
+    return;
+  }
+
+  readerState.training = { label, samples: [], lastSampleAt: 0 };
+  resetReaderCandidate();
+  readerLabelInput.disabled = true;
+  teachSignButton.disabled = true;
+  setTextIfChanged(readerDetected, `LEARNING ${label.toUpperCase()}`);
+  setTextIfChanged(readerConfidence, "HOLD THE SIGN STEADY · 0%");
+  setTextIfChanged(readerAnnouncement, `Learning the personal sign for ${label}. Hold it steadily.`);
+}
+
+function completeReaderTraining() {
+  const training = readerState.training;
+  const pose = averageHandPoses(training?.samples);
+  if (!training || !pose) {
+    cancelReaderTraining();
+    return;
+  }
+
+  const key = training.label.toLocaleLowerCase();
+  const remaining = readerState.library.filter((item) => item.label.toLocaleLowerCase() !== key);
+  readerState.library = sanitizeReaderLibrary([{ label: training.label, pose }, ...remaining]);
+  saveReaderLibrary();
+  readerLabelInput.value = "";
+  cancelReaderTraining();
+  resetReaderCandidate();
+  readerState.locked = true;
+  setTextIfChanged(readerDetected, `${training.label.toUpperCase()} LEARNED`);
+  setTextIfChanged(readerConfidence, "LOWER YOUR HAND, THEN TRY THE SIGN");
+  setTextIfChanged(readerAnnouncement, `${training.label} was learned and saved on this device.`);
+  syncReaderUi();
+}
+
+function updateReaderMatch(now, pose) {
+  const match = classifyLearnedPose(pose, readerState.library);
+  readerState.detected = match?.label ?? null;
+  readerState.confidence = match?.confidence ?? 0;
+
+  if (!match) {
+    readerState.candidate = null;
+    readerState.candidateStartedAt = 0;
+    if (readerState.locked) {
+      if (!readerState.unmatchedStartedAt) readerState.unmatchedStartedAt = now;
+      if (now - readerState.unmatchedStartedAt >= READER_UNLOCK_MS) {
+        readerState.locked = false;
+        readerState.unmatchedStartedAt = 0;
+      }
+    }
+    return 0;
+  }
+
+  readerState.unmatchedStartedAt = 0;
+  if (readerState.locked) return 1;
+  if (readerState.candidate !== match.label) {
+    readerState.candidate = match.label;
+    readerState.candidateStartedAt = now;
+    return 0;
+  }
+
+  const progress = Math.min(1, (now - readerState.candidateStartedAt) / READER_HOLD_MS);
+  if (progress >= 1) {
+    readerState.transcript.push(match.label);
+    readerState.transcript = readerState.transcript.slice(-16);
+    readerState.locked = true;
+    readerState.candidate = null;
+    readerState.candidateStartedAt = 0;
+    setTextIfChanged(readerAnnouncement, `${match.label} added to the transcript.`);
+    syncReaderUi();
+  }
+  return progress;
+}
+
+function renderSignReader(now) {
+  drawNormal();
+  ctx.fillStyle = "rgba(3,7,10,.34)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawLandmarkHud(now, "#55ddff");
+
+  const pose = normalizeHandPose(latestLandmarks);
+  if (readerState.training) {
+    if (pose && now - readerState.training.lastSampleAt >= 45) {
+      readerState.training.samples.push(pose);
+      readerState.training.lastSampleAt = now;
+      if (readerState.training.samples.length >= READER_CAPTURE_SAMPLES) {
+        completeReaderTraining();
+        return;
+      }
+    }
+    const progress = readerState.training.samples.length / READER_CAPTURE_SAMPLES;
+    setTextIfChanged(readerDetected, `LEARNING ${readerState.training.label.toUpperCase()}`);
+    setTextIfChanged(readerConfidence, pose
+      ? `HOLD STEADY · ${Math.round(progress * 100)}%`
+      : "HAND LOST · RETURN TO THE SAME POSE");
+    return;
+  }
+
+  if (!readerState.library.length) {
+    setTextIfChanged(readerDetected, "TEACH A SIGN BELOW");
+    setTextIfChanged(readerConfidence, "PERSONAL TRAINING STAYS ON THIS DEVICE");
+    return;
+  }
+  if (!pose) {
+    updateReaderMatch(now, null);
+    setTextIfChanged(readerDetected, "SHOW ONE HAND");
+    setTextIfChanged(readerConfidence, "CENTER THE FULL HAND IN FRAME");
+    return;
+  }
+
+  const progress = updateReaderMatch(now, pose);
+  if (readerState.detected) {
+    setTextIfChanged(readerDetected, readerState.detected.toUpperCase());
+    setTextIfChanged(readerConfidence,
+      `${Math.round(readerState.confidence * 100)}% MATCH · ${readerState.locked ? "LOWER HAND TO CONTINUE" : `${Math.round(progress * 100)}% HOLD`}`,
+    );
+    setTextIfChanged(gestureReadout, `PERSONAL SIGN · ${readerState.detected.toUpperCase()}`);
+  } else {
+    setTextIfChanged(readerDetected, "NO LEARNED MATCH");
+    setTextIfChanged(readerConfidence, "TRY A LEARNED POSE OR TEACH A NEW ONE");
+  }
+}
+
+function undoReaderWord() {
+  readerState.transcript.pop();
+  syncReaderUi();
+}
+
+function clearReaderTranscript() {
+  readerState.transcript = [];
+  syncReaderUi();
+  setTextIfChanged(readerAnnouncement, "The personal sign transcript was cleared.");
+}
+
+function speakReaderTranscript() {
+  const text = readerState.transcript.join(" ");
+  if (!text || !readerSpeechAvailable()) return;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(new window.SpeechSynthesisUtterance(text));
+}
+
+function forgetReaderSigns() {
+  if (!readerState.library.length || !window.confirm("Forget every personal sign learned on this device?")) return;
+  readerState.library = [];
+  try { localStorage.removeItem(READER_STORAGE_KEY); } catch {}
+  resetReaderCandidate();
+  syncReaderUi();
+  setTextIfChanged(readerDetected, "TEACH A SIGN BELOW");
+  setTextIfChanged(readerConfidence, "PERSONAL TRAINING STAYS ON THIS DEVICE");
+  setTextIfChanged(readerAnnouncement, "All learned personal signs were removed.");
+}
+
 function resetPong() {
   pong.ball = canvas.width && canvas.height ? createPongBall(canvas.width, canvas.height) : null;
   pong.paddleCenter = canvas.height / 2;
@@ -970,7 +1287,7 @@ function paintModeChip() {
   if (activeExperience === "effects") label = effectNotice || effectLabels[currentMode];
   else if (activeExperience === "draw") {
     if (hasConfidentGesture("Open_Palm")) label = "ERASER";
-    else if (isPinching(latestLandmarks)) label = "DRAWING";
+    else if (drawState.pinchGate.active) label = "DRAWING";
     else label = "PINCH TO DRAW";
   } else if (activeExperience === "hud") label = latestLandmarks ? "21 POINTS LOCKED" : "SHOW YOUR HAND";
   else if (activeExperience === "game") label = latestLandmarks ? "PINCH THE ORB" : "SHOW YOUR HAND";
@@ -980,6 +1297,10 @@ function paintModeChip() {
   } else if (activeExperience === "pong") {
     if (pong.gameOver) label = "RUN OVER";
     else label = latestLandmarks ? "PALM = PADDLE" : "SHOW YOUR HAND";
+  } else if (activeExperience === "reader") {
+    if (readerState.training) label = "LEARNING PERSONAL SIGN";
+    else if (readerState.detected) label = `READING ${readerState.detected.toUpperCase()}`;
+    else label = readerState.library.length ? "SHOW A LEARNED SIGN" : "TEACH YOUR FIRST SIGN";
   }
   setTextIfChanged(modeChip, label);
   modeChip.classList.add("visible");
@@ -1001,6 +1322,7 @@ function render(now) {
   else if (activeExperience === "game") renderGame(now);
   else if (activeExperience === "sign") renderSignLab(now);
   else if (activeExperience === "pong") renderPong(now);
+  else if (activeExperience === "reader") renderSignReader(now);
 
   paintModeChip();
   const instantFps = 1000 / Math.max(1, now - previousFrameTime);
@@ -1019,6 +1341,11 @@ window.addEventListener("visionshift:experience", (event) => {
 document.querySelectorAll(".color-swatch").forEach((swatch) => {
   swatch.addEventListener("click", () => cycleToColor(swatch.dataset.color));
 });
+teachSignButton.addEventListener("click", startReaderTraining);
+undoReaderButton.addEventListener("click", undoReaderWord);
+clearReaderButton.addEventListener("click", clearReaderTranscript);
+speakReaderButton.addEventListener("click", speakReaderTranscript);
+forgetSignsButton.addEventListener("click", forgetReaderSigns);
 window.addEventListener("keydown", (event) => {
   if (activeExperience === "pong" && ["ArrowUp", "ArrowDown"].includes(event.key)) event.preventDefault();
   if (event.key === "ArrowUp") pong.keyboardDirection = -1;
@@ -1033,5 +1360,6 @@ window.addEventListener("resize", () => {
 });
 
 syncColorSwatches();
+loadReaderLibrary();
 setExperience(window.VisionShiftShell?.activeExperience ?? "effects");
 loadModels();
