@@ -4,8 +4,6 @@
 
 VisionShift is a browser-based computer-vision playground with six live camera experiences controlled by one hand. A shared MediaPipe pipeline recognizes gestures and tracks 21 hand landmarks locally in the browser; camera frames are not uploaded by this project.
 
-> **Working with the team?** Read and update [TEAM_WORK.md](./TEAM_WORK.md) before editing. It records active ownership, branches, handoffs, and completed work so contributors do not unknowingly change the same files.
-
 ## Experiences and controls
 
 ### 01 · Reality FX
