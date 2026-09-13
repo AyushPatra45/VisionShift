@@ -1,6 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { HeldAction, EditHistory, frameBetweenHands, EyeClosureTimer } from "./studio-utils.js";
+import { HeldAction, EditHistory, frameBetweenHands, EyeClosureTimer, PointingGate } from "./studio-utils.js";
+
+test("index-up draws with either thumb position, tolerates noise, and lifts on folded finger", () => {
+  const gate = new PointingGate();
+  assert.equal(gate.update([false,true,false,false,false],0),true);
+  assert.equal(gate.update([true,true,false,false,false],20),true);
+  assert.equal(gate.update(null,90),true);
+  assert.equal(gate.update([false,false,false,false,false],100),true);
+  assert.equal(gate.update([false,false,false,false,false],180),false);
+  assert.equal(gate.update([false,true,true,false,false],200),false);
+  gate.update([false,true,false,false,false],210);
+  assert.equal(gate.update(null,400),false);
+});
 
 test("single-frame command glitches cannot interrupt a stroke", () => {
   const hold = new HeldAction(250);

@@ -19,12 +19,13 @@ For the cleanest cloak, keep the camera fixed, step fully out of frame, capture 
 
 | Control | Result |
 | --- | --- |
-| Pinch thumb and index finger, then move | Draw with the index fingertip |
+| Raise only the index finger, then move | Draw with the index fingertip; thumb position is unrestricted |
+| Lower the index finger | Lift the pen to move without drawing |
 | Open palm | Erase beneath the index fingertip |
 | Victory sign | Cycle through the ink palette |
 | Hold a closed fist | Clear the canvas |
 
-The pinch detector uses separate start/release thresholds, tolerates a short tracking dropout, and draws adaptive quadratic curves instead of separate frame-to-frame segments. Commands require a 250 ms hold after releasing the pinch, so a misclassified palm does not cut a stroke. Undo and redo retain the last 16 edits (including erases and clears). Choose Fine/Medium/Bold, toggle a clean board, or save a PNG without the camera background. ⌘/Ctrl+Z undoes; add Shift to redo. Keep the whole hand visible, use even front lighting, and move at a deliberate pace; tracking cannot recover long gaps or motion outside the image.
+Keep the middle, ring, and pinky fingers folded. The pointing gate tolerates brief tracking dropouts and noisy gesture labels. Choose **Plain ink**, **Rainbow line**, or **Flower trail** in the Style menu below the camera. Flowers are spaced by movement, so holding still does not pile up stamps; brush size controls their size. Commands require a 250 ms hold after the pen lifts. Undo and redo retain the last 16 edits (including erases and clears). Choose Fine/Medium/Bold, toggle a clean board, or save a PNG without the camera background. ⌘/Ctrl+Z undoes; add Shift to redo. Keep the whole hand visible, use even front lighting, and move deliberately; tracking cannot recover long gaps or motion outside the image.
 
 ### 03 · Hand HUD
 
@@ -127,7 +128,7 @@ Webcam frame
     │
     └── Experience router
             ├── Reality FX  → segmentation + Canvas compositing
-            ├── Air Canvas  → pinch geometry + persistent ink layer
+            ├── Air Canvas  → index-up geometry + ink/rainbow/flower layer
             ├── Hand HUD    → landmark connection renderer
             ├── Orb Game    → fingertip collision + pinch state
             ├── Sign Lab    → finger-state patterns + hold progress

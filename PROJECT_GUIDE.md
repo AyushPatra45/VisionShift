@@ -31,7 +31,7 @@ The cloak is reference-based, not scene reconstruction: the camera must stay fix
 
 ### 02 · Air Canvas
 
-The distance between landmark 4 (thumb tip) and landmark 8 (index tip), normalized by palm width, determines whether the hand is pinching. `PinchGate` uses hysteresis—different engage and release thresholds—and short release/lost-tracking grace periods, so one noisy frame does not cut a stroke. `smoothCanvasPoint` applies motion-adaptive exponential smoothing, and midpoint quadratic curves join samples on a persistent offscreen canvas. Together these prevent the dotted, broken handwriting produced by raw per-frame line segments. An open palm switches that canvas to `destination-out` compositing to erase. Victory cycles the palette, and a held fist clears the drawing.
+`PointingGate` uses finger-extension geometry: index extended, middle/ring/pinky folded, thumb unrestricted. A 70 ms release grace filters noisy poses; missing tracking is tolerated for 150 ms. `smoothCanvasPoint` applies motion-adaptive smoothing, and midpoint quadratic curves join samples on a persistent offscreen canvas. Plain ink and rainbow use the same curves; rainbow hue advances with movement. Flower trails stamp six-petal flowers at distance-based intervals, with size linked to the brush control. All styles share edit history and mirrored export. An open palm erases, victory cycles colors, and a held fist clears.
 
 ### 03 · Hand HUD
 
@@ -65,7 +65,7 @@ This feature is intentionally named **Personal Sign Reader**, not sign-language 
 
 `camera-studio.js` implements Hand Frame, Expression FX, and Study Reminder. Hand Frame uses two index fingertips as rectangle corners, smooths movement, retains its position on tracking loss, and supports styled live or frozen imagery. Face modes lazily load the bundled Face Landmarker with blendshape output; hand inference is skipped while these modes are active. Smile, jaw-open, and unilateral blink scores drive decorative effects. Bilateral blink scores feed an eyes-closed timer with a selectable delay and a one-shot sound per closure. This is not an attention or drowsiness classifier.
 
-`studio-utils.js` contains independently tested hold timers, bounded drawing history, hand-frame geometry, and eye-closure state. Air Canvas gives an active geometric pinch priority over canned gesture labels. Command holds, adaptive smoothing, brief tracking-loss grace, and long-jump guards reduce false stroke breaks; Undo/Redo include erase/clear edits. Export mirrors the offscreen ink to match the displayed handwriting.
+`studio-utils.js` contains independently tested hold timers, pointing detection, bounded drawing history, hand-frame geometry, and eye-closure state. Air Canvas gives index-up geometry priority over canned gesture labels. Command holds, adaptive smoothing, brief tracking-loss grace, and long-jump guards reduce false stroke breaks; Undo/Redo include erase/clear edits. Export mirrors the offscreen ink to match the displayed handwriting.
 
 ### Reference scope and credits
 

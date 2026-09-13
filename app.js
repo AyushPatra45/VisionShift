@@ -11,7 +11,6 @@ import {
   HAND_CONNECTIONS,
   hitTest,
   isPinching,
-  PinchGate,
   smoothCanvasPoint,
   toCanvasPoint,
 } from "./interaction-utils.js";
@@ -29,7 +28,7 @@ import {
 } from "./sign-reader-utils.js";
 import { advancePong, createPongBall } from "./pong-utils.js";
 import { createCameraStudio } from "./camera-studio.js";
-import { HeldAction, EditHistory } from "./studio-utils.js";
+import { HeldAction, EditHistory, PointingGate } from "./studio-utils.js";
 
 const MODEL_URL = "./models/gesture_recognizer.task";
 const SEGMENTER_MODEL_URL = "./models/selfie_segmenter.tflite";
@@ -52,7 +51,7 @@ const EXPERIENCE_META = Object.freeze({
   draw: {
     eyebrow: "EXPERIENCE 02 / AIR CANVAS",
     stage: "AIR CANVAS / LIVE",
-    description: "Pinch your fingers to sketch in mid-air, switch ink with a victory sign, and erase without touching a screen.",
+    description: "Point your index finger up to draw. Choose ink, rainbow lines, or a flower trail; lower your finger to lift the pen.",
   },
   hud: {
     eyebrow: "EXPERIENCE 03 / HAND HUD",
@@ -179,6 +178,10 @@ let fpsSmoothed = 0;
 const stabilizer = new GestureStabilizer();
 
 const drawState = {
+  style: "ink",
+  flowerPoint: null,
+  hue: 0,
+  strokeColor: "#c8ff42",
   width: 8,
   board: false,
   editing: false,
@@ -191,7 +194,7 @@ const drawState = {
   previousMidpoint: null,
   smoothedPoint: null,
   lastPointAt: 0,
-  pinchGate: new PinchGate(),
+  pointGate: new PointingGate(),
   victoryLatched: false,
   fistStartedAt: 0,
   clearLatched: false,
@@ -358,7 +361,7 @@ function resizeCanvases() {
   drawState.history = new EditHistory();
   drawState.editing = false;
   drawState.smoothedPoint = null;
-  drawState.pinchGate.reset();
+  drawState.pointGate.reset();
   syncDrawingHistory();
   cloakFrameReady = false;
   game.target = createTarget(width, height);
@@ -442,7 +445,7 @@ function setExperience(nextExperience) {
   drawState.previousMidpoint = null;
   drawState.smoothedPoint = null;
   drawState.lastPointAt = 0;
-  drawState.pinchGate.reset();
+  drawState.pointGate.reset();
   resetEchoHistory();
   if (previousExperience !== nextExperience) {
     signState.holdStartedAt = 0;
@@ -680,7 +683,7 @@ function syncDrawingHistory() {
 function restoreDrawing(direction) {
   finishDrawingStroke();
   drawState.editing = false;
-  drawState.pinchGate.reset();
+  drawState.pointGate.reset();
   const snapshot = drawState.history[direction](drawingCtx.getImageData(0,0,drawing.width,drawing.height));
   if (snapshot) drawingCtx.putImageData(snapshot,0,0);
   syncDrawingHistory();
@@ -710,10 +713,10 @@ function saveCanvas(source, filename, fill = null) {
 }
 
 function finishDrawingStroke() {
-  if (drawState.previousPoint && drawState.previousMidpoint) {
+  if (drawState.style !== "flowers" && drawState.previousPoint && drawState.previousMidpoint) {
     drawingCtx.save();
     drawingCtx.globalCompositeOperation = "source-over";
-    drawingCtx.strokeStyle = drawState.color;
+    drawingCtx.strokeStyle = drawState.strokeColor;
     drawingCtx.lineWidth = drawState.width;
     drawingCtx.lineCap = "round";
     drawingCtx.beginPath();
@@ -724,14 +727,39 @@ function finishDrawingStroke() {
   }
   drawState.previousPoint = null;
   drawState.previousMidpoint = null;
+  drawState.flowerPoint = null;
 }
 
 function drawSmoothStroke(point) {
   beginDrawingEdit();
+  if (drawState.style === "flowers") {
+    const spacing = drawState.width * 2 + 14;
+    const last = drawState.flowerPoint;
+    const distance = last ? Math.hypot(point.x-last.x, point.y-last.y) : 0;
+    const stamp = (x,y) => {
+      const radius = drawState.width * .6 + 5;
+      drawingCtx.save(); drawingCtx.translate(x,y);
+      drawingCtx.fillStyle = drawState.color;
+      for (let i=0;i<6;i++) {
+        drawingCtx.rotate(Math.PI/3); drawingCtx.beginPath();
+        drawingCtx.ellipse(radius,0,radius,radius*.55,0,0,Math.PI*2); drawingCtx.fill();
+      }
+      drawingCtx.fillStyle = "#ffd75c"; drawingCtx.beginPath();
+      drawingCtx.arc(0,0,radius*.55,0,Math.PI*2); drawingCtx.fill(); drawingCtx.restore();
+      drawState.flowerPoint = {x,y};
+    };
+    if (!last) stamp(point.x,point.y);
+    else for (let step=spacing;step<=distance;step+=spacing) stamp(last.x+(point.x-last.x)*step/distance,last.y+(point.y-last.y)*step/distance);
+    return;
+  }
+  if (drawState.style === "rainbow" && drawState.previousPoint) {
+    drawState.hue = (drawState.hue + Math.hypot(point.x-drawState.previousPoint.x,point.y-drawState.previousPoint.y)*1.5)%360;
+  }
+  drawState.strokeColor = drawState.style === "rainbow" ? `hsl(${drawState.hue} 95% 65%)` : drawState.color;
   drawingCtx.save();
   drawingCtx.globalCompositeOperation = "source-over";
-  drawingCtx.strokeStyle = drawState.color;
-  drawingCtx.fillStyle = drawState.color;
+  drawingCtx.strokeStyle = drawState.strokeColor;
+  drawingCtx.fillStyle = drawState.strokeColor;
   drawingCtx.lineWidth = drawState.width;
   drawingCtx.lineCap = "round";
   drawingCtx.lineJoin = "round";
@@ -770,9 +798,8 @@ function renderAirCanvas(now) {
   ctx.fillStyle = drawState.board ? "#101820" : "rgba(4,7,10,.12)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const point = latestLandmarks?.[8] ? toCanvasPoint(latestLandmarks[8], canvas.width, canvas.height) : null;
-  const pinchInput = !drawState.pinchGate.active && hasConfidentGesture("Closed_Fist") ? null : latestLandmarks;
-  let drawingActive = drawState.pinchGate.update(pinchInput, now);
-  // Pinch is geometric; noisy classifier labels must never override an active pen.
+  let drawingActive = drawState.pointGate.update(getFingerStates(latestLandmarks), now);
+  // Finger geometry takes priority over noisy canned gesture labels.
   const command = drawState.command.update(drawingActive ? null :
     hasConfidentGesture("Victory") ? "color" : hasConfidentGesture("Closed_Fist") ? "clear" :
     hasConfidentGesture("Open_Palm") ? "erase" : null, now);
@@ -786,7 +813,7 @@ function renderAirCanvas(now) {
     const elapsed = drawState.lastPointAt ? now - drawState.lastPointAt : 16;
     drawState.smoothedPoint = smoothCanvasPoint(drawState.smoothedPoint, point, elapsed);
     drawState.lastPointAt = now;
-  } else if (!drawState.lastPointAt || now - drawState.lastPointAt > drawState.pinchGate.lostDelayMs) {
+  } else if (!drawState.lastPointAt || now - drawState.lastPointAt > drawState.pointGate.lostDelayMs) {
     drawState.smoothedPoint = null;
     drawState.lastPointAt = 0;
     finishDrawingStroke();
@@ -816,7 +843,7 @@ function renderAirCanvas(now) {
   }
 
   if (victory || fist || erasing) {
-    drawState.pinchGate.reset();
+    drawState.pointGate.reset();
     drawingActive = false;
   }
 
@@ -1398,9 +1425,9 @@ function paintModeChip() {
   let label;
   if (activeExperience === "effects") label = effectNotice || effectLabels[currentMode];
   else if (activeExperience === "draw") {
-    if (drawState.command.value === "erase" && !drawState.pinchGate.active) label = "HOLD PALM TO ERASE";
-    else if (drawState.pinchGate.active) label = "DRAWING";
-    else label = "PINCH TO DRAW";
+    if (drawState.command.value === "erase" && !drawState.pointGate.active) label = "HOLD PALM TO ERASE";
+    else if (drawState.pointGate.active) label = "DRAWING";
+    else label = "POINT UP TO DRAW";
   } else if (activeExperience === "hud") label = latestLandmarks ? "21 POINTS LOCKED" : "SHOW YOUR HAND";
   else if (activeExperience === "game") label = latestLandmarks ? "PINCH THE ORB" : "SHOW YOUR HAND";
   else if (activeExperience === "sign") {
@@ -1472,6 +1499,9 @@ document.querySelector("#saveDrawing").addEventListener("click", () => {
 document.querySelector("#brushSize").addEventListener("change", event => {
   finishDrawingStroke(); drawState.editing = false; drawState.width = Number(event.target.value);
 });
+document.querySelector("#drawingStyle").addEventListener("change", event => {
+  finishDrawingStroke(); drawState.editing = false; drawState.style = event.target.value;
+});
 document.querySelector("#cleanBoard").addEventListener("change", event => { drawState.board = event.target.checked; });
 document.querySelector("#saveSnapshot").addEventListener("click", () => {
   if (video.srcObject) saveCanvas(canvas, "visionshift-snapshot.png");
@@ -1506,7 +1536,7 @@ window.addEventListener("resize", () => {
 });
 window.addEventListener("blur", () => { pong.keyboardDirection = 0; });
 document.addEventListener("visibilitychange", () => {
-  finishDrawingStroke(); drawState.editing = false; drawState.pinchGate.reset();
+  finishDrawingStroke(); drawState.editing = false; drawState.pointGate.reset();
   drawState.command.reset(); drawState.smoothedPoint = null;
   studio.enter(activeExperience);
 });

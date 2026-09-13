@@ -133,10 +133,10 @@ test("Personal Sign Reader exposes training controls and a phone layout", () => 
   assert.match(css, /@media \(max-width: 600px\)[\s\S]*\.stage\[data-experience="reader"\] \.reader-output/);
 });
 
-test("Air Canvas uses a latched pinch gate and continuous curved strokes", () => {
+test("Air Canvas uses a pointing gate and continuous curved strokes", () => {
   const app = readSource("app.js");
 
-  assert.match(app, /new PinchGate\(/);
+  assert.match(app, /new PointingGate\(/);
   assert.match(app, /smoothCanvasPoint\(/);
   assert.match(app, /quadraticCurveTo\(/);
   assert.match(app, /else if \(!point && drawingActive\)/);

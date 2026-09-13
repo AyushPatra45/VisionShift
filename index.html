@@ -139,6 +139,7 @@
             <p id="captureHelp">Click capture, then step fully out during the three-second countdown. Keep the camera fixed.</p>
           </div>
           <div class="studio-tools" id="drawingTools" hidden>
+            <label>Style <select id="drawingStyle"><option value="ink">Plain ink</option><option value="rainbow">Rainbow line</option><option value="flowers">Flower trail</option></select></label>
             <label>Brush <select id="brushSize"><option value="4">Fine</option><option value="8" selected>Medium</option><option value="16">Bold</option></select></label>
             <button id="undoDrawing" disabled>Undo</button><button id="redoDrawing" disabled>Redo</button>
             <button id="clearDrawing">Clear</button><button id="saveDrawing">Save drawing</button>
@@ -175,9 +176,9 @@
         </div>
 
         <div class="control-panel" data-experience-panel="draw">
-          <p class="module-note">Pinch thumb and index finger, then move slowly. Release before holding a command for a moment. Use Undo / Redo (⌘ or Ctrl + Z / Shift + Z), choose a brush, or save readable handwriting without the camera background.</p>
+          <p class="module-note">Raise only your index finger, keeping the other three fingers folded; your thumb can relax. Move to draw and lower the index finger to lift the pen. Choose Plain ink, Rainbow line, or Flower trail under Style. Brush size also changes flower size. Undo / Redo (⌘ or Ctrl + Z / Shift + Z) and saving work with every style.</p>
           <div class="gesture-grid">
-            <article class="gesture-card"><span class="key">01</span><span class="hand">🤏</span><div><h3>Pinch + move</h3><p>Draw a line</p></div></article>
+            <article class="gesture-card"><span class="key">01</span><span class="hand">☝️</span><div><h3>Point up + move</h3><p>Draw · lower finger to stop</p></div></article>
             <article class="gesture-card"><span class="key">02</span><span class="hand">✋</span><div><h3>Open palm</h3><p>Erase under fingertip</p></div></article>
             <article class="gesture-card"><span class="key">03</span><span class="hand">✌️</span><div><h3>Victory</h3><p>Cycle ink color</p></div></article>
             <article class="gesture-card"><span class="key">04</span><span class="hand">✊</span><div><h3>Hold fist</h3><p>Clear the canvas</p></div></article>
@@ -286,7 +287,7 @@
           draw: {
             eyebrow: "EXPERIENCE 02 / AIR CANVAS",
             stage: "AIR CANVAS / LIVE",
-            description: "Pinch your fingers to sketch in mid-air, switch ink with a victory sign, and erase without touching a screen.",
+            description: "Point your index finger up to draw. Choose ink, rainbow lines, or a flower trail; lower your finger to lift the pen.",
           },
           hud: {
             eyebrow: "EXPERIENCE 03 / HAND HUD",

@@ -82,7 +82,8 @@ try {
     for(let i=0;i<25;i++) {
       const x=.7-i*.012;
       const hand=Array.from({length:21},()=>({x:.5,y:.5,z:0}));
-      hand[5]={x:.4,y:.5};hand[17]={x:.6,y:.5};hand[8]={x,y:.55};hand[4]={x:x+.02,y:.55};
+      hand[0]={x:.5,y:.95};hand[5]={x:.4,y:.75};hand[17]={x:.6,y:.75};
+      hand[6]={x,y:.8};hand[8]={x,y:.55};hand[4]={x:.2,y:.7};
       t.updateRecognition({landmarks:[hand],gestures:[[{categoryName:i%2?"Open_Palm":"Victory",score:.99}]]});
       t.renderAirCanvas(10000+i*32);
     }
@@ -95,6 +96,24 @@ try {
     return {drawn,undone,redone,gaps};
   });
   assert.ok(ink.drawn>100);assert.equal(ink.undone,0);assert.equal(ink.redone,ink.drawn);assert.equal(ink.gaps,0);
+  for (const style of ["flowers","rainbow"]) {
+    await page.locator("#clearDrawing").click();
+    await page.locator("#drawingStyle").selectOption(style);
+    const result = await page.evaluate(()=>{
+      const t=window.__visionTest;
+      for(let i=0;i<20;i++) {
+        const hand=Array.from({length:21},()=>({x:.5,y:.5,z:0}));
+        hand[0]={x:.5,y:.95};hand[6]={x:.5,y:.8};hand[8]={x:.3+i*.02,y:.55};
+        t.updateRecognition({landmarks:[hand]});t.renderAirCanvas(30000+i*32);
+      }
+      t.finishDrawingStroke();
+      const data=()=>Array.from(t.drawingCtx.getImageData(0,0,t.drawing.width,t.drawing.height).data);
+      const before=data();t.restoreDrawing("undo");const empty=data().every(v=>v===0);
+      t.restoreDrawing("redo");return {empty,restored:JSON.stringify(before)===JSON.stringify(data()),painted:before.some(v=>v>0)};
+    });
+    assert.deepEqual(result,{empty:true,restored:true,painted:true});
+  }
+  console.log("PASS: flower and rainbow styles paint and undo/redo exactly");
   console.log("PASS: noisy gesture labels do not break handwriting; undo/redo restore exact ink",ink);
   const download=page.waitForEvent("download"); await page.locator("#saveDrawing").click();
   assert.equal((await download).suggestedFilename(),"visionshift-drawing.png");

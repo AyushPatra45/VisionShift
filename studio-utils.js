@@ -1,4 +1,24 @@
 // Small, deterministic interaction primitives shared by the camera studios.
+export class PointingGate {
+  constructor() { this.lostDelayMs = 150; this.reset(); }
+  reset() { this.active = false; this.lastSeen = null; this.releaseAt = null; }
+  update(states, now) {
+    if (!states) {
+      if (this.active && now - this.lastSeen <= this.lostDelayMs) return true;
+      this.reset(); return false;
+    }
+    this.lastSeen = now;
+    // Thumb position is deliberately unrestricted.
+    const pointing = states[1] && !states[2] && !states[3] && !states[4];
+    if (pointing) { this.active = true; this.releaseAt = null; }
+    else if (this.active) {
+      this.releaseAt ??= now;
+      if (now - this.releaseAt >= 70) this.reset();
+    }
+    return this.active;
+  }
+}
+
 export class HeldAction {
   constructor(delay = 250) { this.delay = delay; this.reset(); }
   reset() { this.value = null; this.since = null; }
