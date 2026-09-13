@@ -8,7 +8,7 @@ import vm from "node:vm";
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 const readSource = (path) => readFileSync(resolve(projectRoot, path), "utf8");
-const experiences = ["effects", "draw", "hud", "game", "sign", "pong", "reader"];
+const experiences = ["effects", "draw", "hud", "game", "sign", "pong", "reader", "frame", "face", "focus"];
 
 function extractInlineScript(html, marker) {
   const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
@@ -88,6 +88,20 @@ test("static build includes the experience utility assets", () => {
   assert.match(build, /["']sign-utils\.js["']/);
   assert.match(build, /["']pong-utils\.js["']/);
   assert.match(build, /["']sign-reader-utils\.js["']/);
+  assert.match(build, /["']studio-utils\.js["']/);
+  assert.match(build, /["']camera-studio\.js["']/);
+});
+
+test("studio models and controls are bundled without external API requirements", () => {
+  const html = readSource("index.html");
+  const studio = readSource("camera-studio.js");
+  assert.ok(statSync(resolve(projectRoot,"models/face_landmarker.task")).size > 3000000);
+  for (const id of ["frameStyle","freezeFrame","eyeDelay","reminderSound","retryFace","undoDrawing","redoDrawing","saveDrawing"]) {
+    assert.ok(html.includes(`id="${id}"`));
+  }
+  assert.match(studio,/outputFaceBlendshapes: true/);
+  assert.match(studio,/controller\.abort\(\)/);
+  assert.match(studio,/\["GPU", "CPU"\]/);
 });
 
 test("high-frequency vision output uses discrete accessible announcements", () => {

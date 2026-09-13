@@ -14,6 +14,8 @@ const files = [
   "sign-utils.js",
   "sign-reader-utils.js",
   "pong-utils.js",
+  "studio-utils.js",
+  "camera-studio.js",
 ];
 
 rmSync(output, { recursive: true, force: true });

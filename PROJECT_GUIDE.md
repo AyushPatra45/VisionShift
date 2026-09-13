@@ -61,11 +61,25 @@ The learned library is capped at 12 entries and stored in browser `localStorage`
 
 This feature is intentionally named **Personal Sign Reader**, not sign-language translator. It recognizes only signer-specific static poses deliberately taught to it. It cannot interpret ASL, ISL, another natural sign language, motion, two-hand relationships, facial/non-manual markers, grammar, or continuous discourse. Building a real translator requires language-specific sequence data, temporal models, signer-diverse evaluation, and collaboration with Deaf communities.
 
+### 08–10 · Camera studios
+
+`camera-studio.js` implements Hand Frame, Expression FX, and Study Reminder. Hand Frame uses two index fingertips as rectangle corners, smooths movement, retains its position on tracking loss, and supports styled live or frozen imagery. Face modes lazily load the bundled Face Landmarker with blendshape output; hand inference is skipped while these modes are active. Smile, jaw-open, and unilateral blink scores drive decorative effects. Bilateral blink scores feed an eyes-closed timer with a selectable delay and a one-shot sound per closure. This is not an attention or drowsiness classifier.
+
+`studio-utils.js` contains independently tested hold timers, bounded drawing history, hand-frame geometry, and eye-closure state. Air Canvas gives an active geometric pinch priority over canned gesture labels. Command holds, adaptive smoothing, brief tracking-loss grace, and long-jump guards reduce false stroke breaks; Undo/Redo include erase/clear edits. Export mirrors the offscreen ink to match the displayed handwriting.
+
+### Reference scope and credits
+
+The requested Instagram references were inspected in-browser: [meeting effects by Gazi Jarin](https://www.instagram.com/reel/Dc_ZvBcO9XM/), [study reminder by Swastik Biswas](https://www.instagram.com/reel/DcWrXcHzP3L/), [invisibility](https://www.instagram.com/reel/DZ4zT_XPCJw/), and [HandFrame by tuba.captures](https://www.instagram.com/reel/DbphY3JpgUN/). These additions are original browser implementations inspired by the visible concepts, not copies of the creators' code or a promise of identical results. No Instagram media is bundled.
+
+Face tracking follows Google's [MediaPipe Web guide](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js). The version-1 model is bundled from [Google's official model storage](https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task). The [Selfie Segmentation model card](https://storage.googleapis.com/mediapipe-assets/Model%20Card%20MediaPipe%20Selfie%20Segmentation.pdf) specifies a person-probability mask. The application no longer guesses polarity per frame. Background capture has a countdown and checks for person pixels before saving.
+
+API and continuous sign-language translation work remains paused; the existing practice and personal-pose tools are unchanged.
+
 ## File map
 
 | File | Responsibility |
 | --- | --- |
-| `index.html` | Product layout, seven-experience picker, controls, status, and explanatory copy |
+| `index.html` | Product layout, ten-experience picker, controls, status, and explanatory copy |
 | `styles.css` | Responsive visual system and experience-specific overlays |
 | `app.js` | Camera lifecycle, MediaPipe models, experience router, state, and renderers |
 | `gesture-state.js` | Stable gesture-to-effect state machine |
@@ -74,6 +88,9 @@ This feature is intentionally named **Personal Sign Reader**, not sign-language 
 | `sign-utils.js` | Static finger-state extraction and Sign Lab pattern classification |
 | `sign-reader-utils.js` | Personal pose normalization, averaging, mirroring, persistence validation, and matching |
 | `pong-utils.js` | Neon Pong ball creation, movement, collision, and game events |
+| `camera-studio.js` | On-demand face model, face effects, study reminder, two-hand frame |
+| `studio-utils.js` | Command holds, drawing history, frame geometry, eye-closure timer |
+| `scripts/browser-smoke.mjs` | Isolated browser checks using a synthetic camera |
 | `*.test.js` | Unit tests for state and reusable geometry/classification helpers |
 | `models/` | Local gesture-recognition and person-segmentation model assets |
 | `scripts/build.mjs` | Reproducible static deployment build into `dist/` |

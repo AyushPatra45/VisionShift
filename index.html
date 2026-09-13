@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#080a0f" />
-    <meta name="description" content="VisionShift is a private, on-device computer-vision playground with seven camera experiences controlled by one hand." />
-    <meta property="og:title" content="VisionShift — One camera. Seven realities." />
+    <meta name="description" content="VisionShift is a private, on-device computer-vision playground with ten camera experiences controlled by hands and expressions." />
+    <meta property="og:title" content="VisionShift — One camera. Endless play." />
     <meta property="og:description" content="Cloak, draw, inspect, learn, read personal signs, and play with real-time hand gestures in your browser." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://ayushpatra45.github.io/VisionShift/assets/visionshift-social.png" />
@@ -55,15 +55,18 @@
           <span class="experience-number">07</span>
           <span><strong>Sign Reader</strong><small>Teach · read · speak</small></span>
         </button>
+        <button class="experience-button" data-experience="frame" aria-pressed="false"><span class="experience-number">08</span><span><strong>Hand Frame</strong><small>Two hands · floating photo</small></span></button>
+        <button class="experience-button" data-experience="face" aria-pressed="false"><span class="experience-number">09</span><span><strong>Expression FX</strong><small>Smile · wink · surprise</small></span></button>
+        <button class="experience-button" data-experience="focus" aria-pressed="false"><span class="experience-number">10</span><span><strong>Study Reminder</strong><small>Eyes-closed reminder</small></span></button>
       </nav>
 
       <section class="hero">
         <div class="intro">
           <p class="eyebrow" id="experienceEyebrow">EXPERIENCE 01 / REALITY FX</p>
-          <h1>One camera.<br /><em>Seven realities.</em></h1>
+          <h1>One camera.<br /><em>Endless play.</em></h1>
           <p class="lede" id="experienceDescription">Become invisible, fracture the live feed, or leave ghost echoes using only recognizable hand signs.</p>
           <div class="system-stats" aria-label="Project capabilities">
-            <div><strong>07</strong><span>experiences</span></div>
+            <div><strong>10</strong><span>experiences</span></div>
             <div><strong>21</strong><span>hand points</span></div>
             <div><strong>100%</strong><span>on-device</span></div>
           </div>
@@ -133,8 +136,26 @@
               <span class="capture-icon"></span>
               Capture empty background
             </button>
-            <p>For cloaking, step out of frame, wait two seconds, then capture the clean scene.</p>
+            <p id="captureHelp">Click capture, then step fully out during the three-second countdown. Keep the camera fixed.</p>
           </div>
+          <div class="studio-tools" id="drawingTools" hidden>
+            <label>Brush <select id="brushSize"><option value="4">Fine</option><option value="8" selected>Medium</option><option value="16">Bold</option></select></label>
+            <button id="undoDrawing" disabled>Undo</button><button id="redoDrawing" disabled>Redo</button>
+            <button id="clearDrawing">Clear</button><button id="saveDrawing">Save drawing</button>
+            <label><input type="checkbox" id="cleanBoard" /> Clean board</label>
+          </div>
+          <div class="studio-tools" id="frameTools" hidden>
+            <label>Style <select id="frameStyle"><option value="neon">Neon</option><option value="mono">Monochrome</option><option value="pop">Pop color</option><option value="normal">Natural</option></select></label>
+            <button id="freezeFrame" aria-pressed="false">Freeze photo</button>
+          </div>
+          <div class="studio-tools" id="faceTools" hidden><button id="testConfetti">Try confetti</button></div>
+          <div class="studio-tools" id="focusTools" hidden>
+            <label>Eyes closed for <select id="eyeDelay"><option value="1.8">1.8 seconds</option><option value="3">3 seconds</option><option value="5">5 seconds</option></select></label>
+            <label><input id="reminderSound" type="checkbox" /> Gentle sound</label>
+            <p id="focusReadout">Enable the camera and face it in good light.</p>
+          </div>
+          <div class="studio-tools" id="faceRecovery" hidden><button id="retryFace">Retry face tracking</button><span id="studioMessage" role="status"></span></div>
+          <div class="studio-tools"><button id="saveSnapshot" disabled>Save camera snapshot</button><span class="tool-hint">Saved only when you choose. Nothing is uploaded.</span></div>
         </div>
       </section>
 
@@ -154,6 +175,7 @@
         </div>
 
         <div class="control-panel" data-experience-panel="draw">
+          <p class="module-note">Pinch thumb and index finger, then move slowly. Release before holding a command for a moment. Use Undo / Redo (⌘ or Ctrl + Z / Shift + Z), choose a brush, or save readable handwriting without the camera background.</p>
           <div class="gesture-grid">
             <article class="gesture-card"><span class="key">01</span><span class="hand">🤏</span><div><h3>Pinch + move</h3><p>Draw a line</p></div></article>
             <article class="gesture-card"><span class="key">02</span><span class="hand">✋</span><div><h3>Open palm</h3><p>Erase under fingertip</p></div></article>
@@ -212,12 +234,36 @@
           </div>
           <p class="module-note"><strong>Scope:</strong> This is a personal, signer-specific static-pose reader—not an ASL, ISL, or universal sign-language translator. It cannot understand motion, two-handed signs, facial grammar, or continuous sentences. Learned poses stay in this browser.</p>
         </div>
+        <div class="control-panel" data-experience-panel="frame">
+          <div class="gesture-grid gesture-grid-three">
+            <article class="gesture-card"><span class="key">01</span><span class="hand">↔</span><div><h3>Show two hands</h3><p>Index fingertips set opposite corners</p></div></article>
+            <article class="gesture-card"><span class="key">02</span><span class="hand">◱</span><div><h3>Shape the frame</h3><p>Move fingers apart and diagonally to resize</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">▣</span><div><h3>Freeze + style</h3><p>Use the controls below the camera, then save a snapshot</p></div></article>
+          </div>
+          <p class="module-note">Keep both hands visible. If one disappears, the frame stays in its last position. Pop color is a live color filter, not AI-generated art.</p>
+        </div>
+        <div class="control-panel" data-experience-panel="face">
+          <div class="gesture-grid gesture-grid-three">
+            <article class="gesture-card"><span class="key">01</span><span class="hand">☺</span><div><h3>Smile</h3><p>Celebrate with confetti</p></div></article>
+            <article class="gesture-card"><span class="key">02</span><span class="hand">◎</span><div><h3>Open your mouth</h3><p>Send out blue energy rings</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">✧</span><div><h3>Wink</h3><p>Trigger a pink sparkle</p></div></article>
+          </div>
+          <p class="module-note">Face the camera, keep your face well lit, and hold an expression briefly. These visual effects run inside VisionShift; they do not install a virtual camera for meeting apps.</p>
+        </div>
+        <div class="control-panel" data-experience-panel="focus">
+          <div class="gesture-grid gesture-grid-three">
+            <article class="gesture-card"><span class="key">01</span><span class="hand">◉</span><div><h3>Face the camera</h3><p>Both eyes must be visible</p></div></article>
+            <article class="gesture-card"><span class="key">02</span><span class="hand">⏱</span><div><h3>Choose a delay</h3><p>Normal brief blinks do not trigger it</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">♪</span><div><h3>Optional reminder</h3><p>Enable a gentle sound or use the visual cue</p></div></article>
+          </div>
+          <p class="module-note"><strong>Experimental:</strong> Detects sustained eye closure only—not studying, distraction, tiredness, or a medical condition. Glasses, lighting and head angle can affect results. Never use this for driving or safety monitoring. No recordings or attention logs are kept.</p>
+        </div>
       </section>
 
       <section class="pipeline" aria-labelledby="pipelineTitle">
         <div class="section-heading pipeline-heading">
-          <div><p class="section-label">UNDER THE HOOD</p><h2 id="pipelineTitle">One vision pipeline, seven outputs</h2></div>
-          <p>Every experience reuses the same camera analysis instead of running a separate detector.</p>
+          <div><p class="section-label">UNDER THE HOOD</p><h2 id="pipelineTitle">Local intelligence. Live interaction.</h2></div>
+          <p>One camera feed. Hand tracking for gestures, person segmentation for cloaking, and face tracking loaded on demand.</p>
         </div>
         <div class="pipeline-grid">
           <article><span>01</span><h3>Camera frame</h3><p>The browser reads a live frame after you grant permission.</p></article>
@@ -267,6 +313,18 @@
             stage: "SIGN READER / ON-DEVICE",
             description: "Teach the browser your own static one-hand signs, turn stable matches into a text phrase, and speak it aloud.",
           },
+          frame: {
+            eyebrow: "EXPERIENCE 08 / HAND FRAME", stage: "HAND FRAME / LIVE",
+            description: "Move two index fingers to position and resize a floating camera frame. Switch styles or freeze a photo inside it.",
+          },
+          face: {
+            eyebrow: "EXPERIENCE 09 / EXPRESSION FX", stage: "EXPRESSION FX / LIVE",
+            description: "Smile for confetti, open your mouth for energy rings, or wink for a sparkle. Your expressions control the effects.",
+          },
+          focus: {
+            eyebrow: "EXPERIENCE 10 / STUDY REMINDER", stage: "STUDY REMINDER / EXPERIMENT",
+            description: "An optional gentle reminder when both eyes stay closed. A local camera experiment, not an attention or health assessment.",
+          },
         });
 
         let activeExperience = "effects";
@@ -281,6 +339,10 @@
           document.querySelector("#experienceDescription").textContent = meta.description;
           document.querySelector("#stageExperience").textContent = meta.stage;
           document.querySelector("#captureRow").classList.toggle("hidden", nextExperience !== "effects");
+          for (const [id, modes] of Object.entries({ drawingTools: ["draw"], frameTools: ["frame"], faceTools: ["face"], focusTools: ["focus"], faceRecovery: ["face", "focus"] })) {
+            const tools = document.querySelector(`#${id}`);
+            if (tools) tools.hidden = !modes.includes(nextExperience);
+          }
 
           document.querySelectorAll(".experience-button").forEach((button) => {
             const selected = button.dataset.experience === nextExperience;

@@ -1,8 +1,6 @@
 # VisionShift
 
-![VisionShift — seven camera experiences controlled with one hand](./assets/visionshift-social.png)
-
-VisionShift is a browser-based computer-vision playground with seven live camera experiences controlled by one hand. A shared MediaPipe pipeline recognizes gestures and tracks 21 hand landmarks locally in the browser; camera frames are not uploaded by this project.
+VisionShift is a browser-based computer-vision playground with **ten live camera experiences** controlled by hands and expressions. MediaPipe tracks hand landmarks, segments people, and detects facial expressions locally; camera frames are not uploaded by this project.
 
 ## Experiences and controls
 
@@ -26,7 +24,7 @@ For the cleanest cloak, keep the camera fixed, step fully out of frame, capture 
 | Victory sign | Cycle through the ink palette |
 | Hold a closed fist | Clear the canvas |
 
-The pinch detector uses separate start/release thresholds, tolerates a short tracking dropout, and draws adaptive quadratic curves instead of separate frame-to-frame segments. This keeps handwriting connected while filtering normal fingertip jitter. For best results, keep the whole hand visible, use even front lighting, and move at a deliberate pace.
+The pinch detector uses separate start/release thresholds, tolerates a short tracking dropout, and draws adaptive quadratic curves instead of separate frame-to-frame segments. Commands require a 250 ms hold after releasing the pinch, so a misclassified palm does not cut a stroke. Undo and redo retain the last 16 edits (including erases and clears). Choose Fine/Medium/Bold, toggle a clean board, or save a PNG without the camera background. ⌘/Ctrl+Z undoes; add Shift to redo. Keep the whole hand visible, use even front lighting, and move at a deliberate pace; tracking cannot recover long gaps or motion outside the image.
 
 ### 03 · Hand HUD
 
@@ -51,6 +49,22 @@ Move your hand vertically to control the neon paddle and return the ball. Each h
 The reader lets one person teach the browser their own **static, one-hand poses** and map each pose to a word or short phrase. Type a meaning, hold the pose while choosing **Teach this sign**, then lower the hand. Showing a learned pose steadily adds its label to a transcript; the transcript can be edited, cleared, or spoken aloud. Up to 12 learned signs are stored only in that browser's local storage.
 
 This is a small personalized communication experiment, **not an ASL/ISL translator, interpreter, or accessibility service**. It does not understand motion, two-handed signs, signing location, facial expression, grammar, or continuous signing. A genuine continuous translator is a spatiotemporal language-model problem, as illustrated by the [Sign Language Transformers research](https://openaccess.thecvf.com/content_CVPR_2020/html/Camgoz_Sign_Language_Transformers_Joint_End-to-End_Sign_Language_Recognition_and_Translation_CVPR_2020_paper.html), and requires appropriate language-specific datasets plus evaluation with Deaf signers.
+
+### 08 · Hand Frame
+
+Show both hands and move your index fingertips diagonally apart: they control opposite corners of a floating camera frame. The frame smoothly follows both fingers and stays put when tracking is lost. Choose Neon, Monochrome, Pop color, or Natural; **Freeze photo** holds a still inside the frame, while **Use live frame** restores video. **Save camera snapshot** exports the mirrored composition. These are Canvas color filters, not generative AI art.
+
+### 09 · Expression FX
+
+Face the camera in good light. Smile for confetti, open your mouth for energy rings, or wink for a sparkle. Hold briefly to avoid accidental triggers. **Try confetti** is also available as a button. Effects appear in this website; a virtual camera for Zoom/Meet is not installed. The face model loads only when a face mode is selected, with GPU/CPU fallback and a retry control.
+
+### 10 · Study Reminder (experimental)
+
+Choose an eyes-closed delay (1.8, 3, or 5 seconds). Sustained closure of both eyes triggers a visual reminder; optionally enable a gentle sound. Normal short blinks are ignored, and missing faces reset the timer. **This does not measure attention, studying, fatigue, or health, and must not be used for driving or safety monitoring.** Glasses, head pose, and lighting can cause incorrect results. No monitoring history is saved.
+
+### Better cloak capture
+
+The capture button gives you three seconds to leave the scene and rejects captures where the model still detects a person. The bundled model's person-confidence mask is used directly, with soft edges; the surrounding camera feed remains live. The hidden region uses the saved reference, so camera movement, shadows, or moving objects behind you cannot be reconstructed perfectly.
 
 ## Run locally
 
@@ -85,6 +99,8 @@ npm run preview
 
 `npm run build` creates a self-contained static deployment in `dist/`. It includes the application modules, local MediaPipe models, and the MediaPipe Tasks Vision browser runtime. Preview that exact build at [http://localhost:8081](http://localhost:8081).
 
+Optional browser regression test: install Playwright in your development environment, then run `node scripts/browser-smoke.mjs`. Set `PLAYWRIGHT_PATH` to an installed Playwright module and `CHROME_PATH` to a Chrome executable if needed. The test launches an isolated browser with a synthetic camera, checks actual model startup, all routes, noisy-gesture drawing continuity, undo/redo, PNG export, and mobile overflow. It never uses your physical webcam. Real signing/face accuracy still needs testing with people on target devices.
+
 ## Deploy with GitHub Pages
 
 The included GitHub Actions workflow tests, builds, and deploys the site whenever `main` is pushed:
@@ -107,6 +123,7 @@ Webcam frame
     │       └── 21 normalized hand landmarks
     │
     ├── MediaPipe Image Segmenter (Reality FX cloak)
+    ├── MediaPipe Face Landmarker (loaded on demand)
     │
     └── Experience router
             ├── Reality FX  → segmentation + Canvas compositing
@@ -115,7 +132,10 @@ Webcam frame
             ├── Orb Game    → fingertip collision + pinch state
             ├── Sign Lab    → finger-state patterns + hold progress
             ├── Neon Pong   → palm-driven paddle + ball physics
-            └── Sign Reader → learned normalized poses + local transcript
+            ├── Sign Reader → learned normalized poses + local transcript
+            ├── Hand Frame → two-hand geometry + styled viewport
+            ├── Expression FX → blendshapes + visual effects
+            └── Study Reminder → eye closure duration + optional sound
 ```
 
 One recognition result is shared across all experiences, so switching modules does not load another hand model. Rendering and interaction happen with Canvas 2D and vanilla JavaScript modules.

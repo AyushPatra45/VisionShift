@@ -28,6 +28,8 @@ import {
   sanitizeReaderLibrary,
 } from "./sign-reader-utils.js";
 import { advancePong, createPongBall } from "./pong-utils.js";
+import { createCameraStudio } from "./camera-studio.js";
+import { HeldAction, EditHistory } from "./studio-utils.js";
 
 const MODEL_URL = "./models/gesture_recognizer.task";
 const SEGMENTER_MODEL_URL = "./models/selfie_segmenter.tflite";
@@ -76,6 +78,21 @@ const EXPERIENCE_META = Object.freeze({
     eyebrow: "EXPERIENCE 07 / PERSONAL SIGN READER",
     stage: "SIGN READER / ON-DEVICE",
     description: "Teach the browser your own static one-hand signs, turn stable matches into a text phrase, and speak it aloud.",
+  },
+  frame: {
+    eyebrow: "EXPERIENCE 08 / HAND FRAME",
+    stage: "HAND FRAME / LIVE",
+    description: "Move two index fingers to position and resize a floating camera frame. Switch styles or freeze a photo inside it.",
+  },
+  face: {
+    eyebrow: "EXPERIENCE 09 / EXPRESSION FX",
+    stage: "EXPRESSION FX / LIVE",
+    description: "Smile for confetti, open your mouth for energy rings, or wink for a sparkle. Your expressions control the effects.",
+  },
+  focus: {
+    eyebrow: "EXPERIENCE 10 / STUDY REMINDER",
+    stage: "STUDY REMINDER / EXPERIMENT",
+    description: "An optional gentle reminder when both eyes stay closed. A local camera experiment, not an attention or health assessment.",
   },
 });
 
@@ -147,6 +164,7 @@ let currentMode = "normal";
 let lastMode = "normal";
 let effectNotice = "";
 let latestLandmarks;
+let latestHands = [];
 let latestGesture = "None";
 let latestGestureScore = 0;
 let latestHandedness = "";
@@ -161,6 +179,11 @@ let fpsSmoothed = 0;
 const stabilizer = new GestureStabilizer();
 
 const drawState = {
+  width: 8,
+  board: false,
+  editing: false,
+  command: new HeldAction(250),
+  history: new EditHistory(),
   color: "#c8ff42",
   colorIndex: 0,
   colors: ["#c8ff42", "#55ddff", "#ff4f9a", "#fff4d6"],
@@ -173,6 +196,7 @@ const drawState = {
   fistStartedAt: 0,
   clearLatched: false,
 };
+const studio = createCameraStudio({ video, canvas, ctx });
 
 const game = {
   target: null,
@@ -236,7 +260,7 @@ async function loadModels() {
       (delegate) => GestureRecognizer.createFromOptions(vision, {
         baseOptions: { modelAssetPath: MODEL_URL, delegate },
         runningMode: "VIDEO",
-        numHands: 1,
+        numHands: 2,
         minHandDetectionConfidence: 0.55,
         minHandPresenceConfidence: 0.55,
         minTrackingConfidence: 0.55,
@@ -300,6 +324,7 @@ async function startCamera() {
     resizeCanvases();
     panel.classList.add("hidden");
     stage.classList.add("camera-on");
+    document.querySelector("#saveSnapshot").disabled = false;
     captureButton.disabled = !segmenter;
     teachSignButton.disabled = false;
     requestAnimationFrame(render);
@@ -320,30 +345,66 @@ function resizeCanvases() {
   const height = Math.round(width * sourceHeight / sourceWidth);
   stage.style.aspectRatio = `${sourceWidth} / ${sourceHeight}`;
   if (canvas.width === width && canvas.height === height) return;
+  finishDrawingStroke();
+  const savedInk = document.createElement("canvas");
+  savedInk.width = drawing.width; savedInk.height = drawing.height;
+  savedInk.getContext("2d").drawImage(drawing,0,0);
   for (const target of [canvas, background, fullSizeMask, cloakLayer, drawing]) {
     target.width = width;
     target.height = height;
   }
   backgroundReady = false;
+  drawingCtx.drawImage(savedInk,0,0,width,height);
+  drawState.history = new EditHistory();
+  drawState.editing = false;
+  drawState.smoothedPoint = null;
+  drawState.pinchGate.reset();
+  syncDrawingHistory();
   cloakFrameReady = false;
   game.target = createTarget(width, height);
   resetPong();
 }
 
 async function captureBackground() {
-  if (!segmenter) return;
+  if (!segmenter || !video.srcObject) return;
   captureButton.disabled = true;
-  captureButton.innerHTML = '<span class="capture-icon"></span>Matching camera…';
-  await lockCameraAppearance();
-  backgroundCtx.drawImage(video, 0, 0, background.width, background.height);
-  backgroundReady = true;
-  cloakFrameReady = false;
-  effectNotice = "";
-  captureButton.disabled = false;
-  captureButton.innerHTML = '<span class="capture-icon"></span>Background captured ✓';
-  setTimeout(() => {
-    captureButton.innerHTML = '<span class="capture-icon"></span>Recapture background';
-  }, 1700);
+  try {
+    for (let seconds = 3; seconds > 0; seconds--) {
+      captureButton.textContent = `Step fully out of frame… ${seconds}`;
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (activeExperience !== "effects" || !video.srcObject) return;
+    }
+    let personFraction = 1;
+    segmenter.segmentForVideo(video, performance.now(), result => {
+      const mask = result.confidenceMasks?.[0]?.getAsFloat32Array();
+      if (mask) {
+        let detected = 0;
+        for (const probability of mask) if (probability > .5) detected++;
+        personFraction = detected / mask.length;
+      }
+      result.categoryMask?.close?.();
+      result.confidenceMasks?.forEach(mask => mask.close?.());
+    });
+    if (personFraction > .025) {
+      effectNotice = "PERSON STILL VISIBLE — RECAPTURE";
+      document.querySelector("#captureHelp").textContent = "A person is still in the scene. Step completely out, then try capture again.";
+      return;
+    }
+    await lockCameraAppearance();
+    backgroundCtx.drawImage(video, 0, 0, background.width, background.height);
+    backgroundReady = true;
+    cloakFrameReady = false;
+    sceneBrightness = 1;
+    effectNotice = "BACKGROUND CAPTURED";
+    document.querySelector("#captureHelp").textContent = "Clean background saved. Keep the camera fixed; open your palm to cloak.";
+  } catch (error) {
+    effectNotice = "CAPTURE FAILED — TRY AGAIN";
+    document.querySelector("#captureHelp").textContent = "Capture failed. Check that the camera is running and try again.";
+    console.warn("Background capture failed", error);
+  } finally {
+    captureButton.disabled = !video.srcObject;
+    captureButton.textContent = backgroundReady ? "Recapture background" : "Capture empty background";
+  }
 }
 
 async function lockCameraAppearance() {
@@ -365,6 +426,10 @@ async function lockCameraAppearance() {
 
 function setExperience(nextExperience) {
   if (!EXPERIENCE_META[nextExperience]) return;
+  finishDrawingStroke();
+  drawState.editing = false;
+  drawState.command.reset();
+  studio.enter(nextExperience);
   const previousExperience = activeExperience;
   activeExperience = nextExperience;
   const meta = EXPERIENCE_META[nextExperience];
@@ -403,6 +468,7 @@ function hasConfidentGesture(name, minScore = GESTURE_CONFIDENCE) {
 }
 
 function updateRecognition(result) {
+  latestHands = result.landmarks ?? [];
   latestLandmarks = result?.landmarks?.[0];
   const top = result?.gestures?.[0]?.[0];
   latestGesture = top?.categoryName ?? "None";
@@ -441,6 +507,9 @@ function updateSceneBrightness(now) {
   const live = brightnessSampleCtx.getImageData(0, 0, width, height).data;
   brightnessSampleCtx.drawImage(background, 0, 0, width, height);
   const plate = brightnessSampleCtx.getImageData(0, 0, width, height).data;
+  brightnessSampleCtx.clearRect(0,0,width,height);
+  brightnessSampleCtx.drawImage(fullSizeMask,0,0,width,height);
+  const mask = brightnessSampleCtx.getImageData(0,0,width,height).data;
   let liveLight = 0;
   let plateLight = 0;
   let samples = 0;
@@ -449,13 +518,14 @@ function updateSceneBrightness(now) {
       const onBorder = x < width * .2 || x > width * .8 || y < height * .18;
       if (!onBorder) continue;
       const index = (y * width + x) * 4;
+      if (mask[index + 3] > 16) continue;
       liveLight += live[index] * .2126 + live[index + 1] * .7152 + live[index + 2] * .0722;
       plateLight += plate[index] * .2126 + plate[index + 1] * .7152 + plate[index + 2] * .0722;
       samples += 1;
     }
   }
   const ratio = liveLight / Math.max(1, plateLight);
-  if (samples && Number.isFinite(ratio)) sceneBrightness = Math.max(.78, Math.min(1.22, ratio));
+  if (samples > 30 && Number.isFinite(ratio)) sceneBrightness = sceneBrightness * .8 + Math.max(.78, Math.min(1.22, ratio)) * .2;
 }
 
 function buildCloakFrame(result, now) {
@@ -470,29 +540,14 @@ function buildCloakFrame(result, now) {
 
   const categories = categoryMask.getAsUint8Array();
   const confidences = confidenceMask?.getAsFloat32Array();
-  let classZeroConfidence = 0;
-  let classOneConfidence = 0;
-  let classZeroSamples = 0;
-  let classOneSamples = 0;
-  if (confidences) {
-    for (let index = 0; index < categories.length; index += 64) {
-      if (categories[index] === 0) {
-        classZeroConfidence += confidences[index];
-        classZeroSamples += 1;
-      } else {
-        classOneConfidence += confidences[index];
-        classOneSamples += 1;
-      }
-    }
-  }
-  const confidenceIsPerson = !confidences ||
-    classZeroConfidence / Math.max(1, classZeroSamples) >= classOneConfidence / Math.max(1, classOneSamples);
+  // This bundled model has one channel labelled "selfie": confidence is person
+  // probability. Inferring its polarity from each frame flips empty scenes.
   const pixels = matteImageData.data;
   for (let index = 0, pixel = 0; index < categories.length; index += 1, pixel += 4) {
     const probability = confidences
-      ? (confidenceIsPerson ? confidences[index] : 1 - confidences[index])
+      ? confidences[index]
       : (categories[index] === 0 ? 1 : 0);
-    const feathered = smoothstep(.14, .72, probability);
+    const feathered = smoothstep(.08, .5, probability);
     pixels[pixel] = 255;
     pixels[pixel + 1] = 255;
     pixels[pixel + 2] = 255;
@@ -610,12 +665,56 @@ function renderEffects(now) {
   else drawNormal();
 }
 
+function beginDrawingEdit() {
+  if (drawState.editing) return;
+  drawState.history.save(drawingCtx.getImageData(0, 0, drawing.width, drawing.height));
+  drawState.editing = true;
+  syncDrawingHistory();
+}
+
+function syncDrawingHistory() {
+  document.querySelector("#undoDrawing").disabled = !drawState.history.undoStack.length;
+  document.querySelector("#redoDrawing").disabled = !drawState.history.redoStack.length;
+}
+
+function restoreDrawing(direction) {
+  finishDrawingStroke();
+  drawState.editing = false;
+  drawState.pinchGate.reset();
+  const snapshot = drawState.history[direction](drawingCtx.getImageData(0,0,drawing.width,drawing.height));
+  if (snapshot) drawingCtx.putImageData(snapshot,0,0);
+  syncDrawingHistory();
+}
+
+function clearDrawing() {
+  finishDrawingStroke();
+  drawState.editing = false;
+  beginDrawingEdit();
+  drawingCtx.clearRect(0,0,drawing.width,drawing.height);
+  drawState.editing = false;
+}
+
+function saveCanvas(source, filename, fill = null) {
+  const exported = document.createElement("canvas");
+  exported.width = source.width; exported.height = source.height;
+  const out = exported.getContext("2d");
+  if (fill) { out.fillStyle = fill; out.fillRect(0,0,exported.width,exported.height); }
+  // Match the mirrored preview so handwriting is readable in the saved image.
+  out.translate(exported.width,0); out.scale(-1,1); out.drawImage(source,0,0);
+  exported.toBlob(blob => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob), link = document.createElement("a");
+    link.href = url; link.download = filename; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }, "image/png");
+}
+
 function finishDrawingStroke() {
   if (drawState.previousPoint && drawState.previousMidpoint) {
     drawingCtx.save();
     drawingCtx.globalCompositeOperation = "source-over";
     drawingCtx.strokeStyle = drawState.color;
-    drawingCtx.lineWidth = 8;
+    drawingCtx.lineWidth = drawState.width;
     drawingCtx.lineCap = "round";
     drawingCtx.beginPath();
     drawingCtx.moveTo(drawState.previousMidpoint.x, drawState.previousMidpoint.y);
@@ -628,11 +727,12 @@ function finishDrawingStroke() {
 }
 
 function drawSmoothStroke(point) {
+  beginDrawingEdit();
   drawingCtx.save();
   drawingCtx.globalCompositeOperation = "source-over";
   drawingCtx.strokeStyle = drawState.color;
   drawingCtx.fillStyle = drawState.color;
-  drawingCtx.lineWidth = 8;
+  drawingCtx.lineWidth = drawState.width;
   drawingCtx.lineCap = "round";
   drawingCtx.lineJoin = "round";
 
@@ -656,7 +756,7 @@ function drawSmoothStroke(point) {
     drawState.previousMidpoint = midpoint;
   } else {
     drawingCtx.beginPath();
-    drawingCtx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+    drawingCtx.arc(point.x, point.y, drawState.width / 2, 0, Math.PI * 2);
     drawingCtx.fill();
     drawState.previousMidpoint = { ...point };
   }
@@ -666,16 +766,23 @@ function drawSmoothStroke(point) {
 }
 
 function renderAirCanvas(now) {
-  drawNormal();
-  ctx.fillStyle = "rgba(4,7,10,.12)";
+  if (!drawState.board) drawNormal();
+  ctx.fillStyle = drawState.board ? "#101820" : "rgba(4,7,10,.12)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const point = latestLandmarks?.[8] ? toCanvasPoint(latestLandmarks[8], canvas.width, canvas.height) : null;
-  const victory = hasConfidentGesture("Victory");
-  const fist = hasConfidentGesture("Closed_Fist");
-  const erasing = hasConfidentGesture("Open_Palm");
-  let drawingActive = drawState.pinchGate.update(latestLandmarks, now);
+  const pinchInput = !drawState.pinchGate.active && hasConfidentGesture("Closed_Fist") ? null : latestLandmarks;
+  let drawingActive = drawState.pinchGate.update(pinchInput, now);
+  // Pinch is geometric; noisy classifier labels must never override an active pen.
+  const command = drawState.command.update(drawingActive ? null :
+    hasConfidentGesture("Victory") ? "color" : hasConfidentGesture("Closed_Fist") ? "clear" :
+    hasConfidentGesture("Open_Palm") ? "erase" : null, now);
+  const victory = command === "color", fist = command === "clear", erasing = command === "erase";
 
   if (point) {
+    if (drawState.smoothedPoint && Math.hypot(point.x - drawState.smoothedPoint.x, point.y - drawState.smoothedPoint.y) > canvas.width * .22) {
+      // Reacquiring a different hand must not draw a long line across the page.
+      finishDrawingStroke(); drawState.editing = false; drawState.smoothedPoint = null;
+    }
     const elapsed = drawState.lastPointAt ? now - drawState.lastPointAt : 16;
     drawState.smoothedPoint = smoothCanvasPoint(drawState.smoothedPoint, point, elapsed);
     drawState.lastPointAt = now;
@@ -687,6 +794,7 @@ function renderAirCanvas(now) {
 
   if (victory) {
     if (!drawState.victoryLatched) {
+      finishDrawingStroke();
       drawState.colorIndex = (drawState.colorIndex + 1) % drawState.colors.length;
       drawState.color = drawState.colors[drawState.colorIndex];
       drawState.victoryLatched = true;
@@ -699,7 +807,7 @@ function renderAirCanvas(now) {
   if (fist) {
     if (!drawState.fistStartedAt) drawState.fistStartedAt = now;
     if (now - drawState.fistStartedAt > 850 && !drawState.clearLatched) {
-      drawingCtx.clearRect(0, 0, drawing.width, drawing.height);
+      clearDrawing();
       drawState.clearLatched = true;
     }
   } else {
@@ -716,6 +824,7 @@ function renderAirCanvas(now) {
     drawSmoothStroke(drawState.smoothedPoint);
   } else if (drawState.smoothedPoint && point && erasing) {
     finishDrawingStroke();
+    beginDrawingEdit();
     drawingCtx.save();
     drawingCtx.globalCompositeOperation = "destination-out";
     drawingCtx.beginPath();
@@ -727,6 +836,7 @@ function renderAirCanvas(now) {
     // not split handwriting into disconnected dashes.
   } else {
     finishDrawingStroke();
+    drawState.editing = false;
   }
 
   ctx.drawImage(drawing, 0, 0);
@@ -1268,6 +1378,8 @@ function drawPointer(point, color, radius) {
 function cycleToColor(color) {
   const index = drawState.colors.indexOf(color);
   if (index < 0) return;
+  finishDrawingStroke();
+  drawState.editing = false;
   drawState.color = color;
   drawState.colorIndex = index;
   syncColorSwatches();
@@ -1286,7 +1398,7 @@ function paintModeChip() {
   let label;
   if (activeExperience === "effects") label = effectNotice || effectLabels[currentMode];
   else if (activeExperience === "draw") {
-    if (hasConfidentGesture("Open_Palm")) label = "ERASER";
+    if (drawState.command.value === "erase" && !drawState.pinchGate.active) label = "HOLD PALM TO ERASE";
     else if (drawState.pinchGate.active) label = "DRAWING";
     else label = "PINCH TO DRAW";
   } else if (activeExperience === "hud") label = latestLandmarks ? "21 POINTS LOCKED" : "SHOW YOUR HAND";
@@ -1301,7 +1413,7 @@ function paintModeChip() {
     if (readerState.training) label = "LEARNING PERSONAL SIGN";
     else if (readerState.detected) label = `READING ${readerState.detected.toUpperCase()}`;
     else label = readerState.library.length ? "SHOW A LEARNED SIGN" : "TEACH YOUR FIRST SIGN";
-  }
+  } else label = studio.label || "ENABLE CAMERA";
   setTextIfChanged(modeChip, label);
   modeChip.classList.add("visible");
   document.querySelectorAll(".gesture-card[data-mode]").forEach((card) => {
@@ -1310,10 +1422,26 @@ function paintModeChip() {
 }
 
 function render(now) {
-  if (video.currentTime !== lastVideoTime && now - lastRecognitionAt >= RECOGNITION_INTERVAL_MS) {
+  if (document.hidden) { requestAnimationFrame(render); return; }
+  if (!["face", "focus"].includes(activeExperience) && video.currentTime !== lastVideoTime && now - lastRecognitionAt >= RECOGNITION_INTERVAL_MS) {
     lastVideoTime = video.currentTime;
     lastRecognitionAt = now;
-    updateRecognition(recognizer.recognizeForVideo(video, now));
+    try { updateRecognition(recognizer.recognizeForVideo(video, now)); }
+    catch (error) {
+      updateRecognition({});
+      statusText.textContent = "TRACKING INTERRUPTED — RELOAD TO RETRY";
+      console.warn("Hand tracking interrupted", error);
+      video.srcObject?.getTracks().forEach(track => track.stop());
+      video.srcObject = null;
+      document.querySelector("#saveSnapshot").disabled = true;
+      panel.classList.remove("hidden");
+      loadNote.textContent = "Tracking stopped. Reload the page to restart the camera engine.";
+      startButton.textContent = "Reload VisionShift";
+      startButton.disabled = false;
+      startButton.removeEventListener("click", startCamera);
+      startButton.addEventListener("click", () => location.reload(), { once: true });
+      return;
+    }
   }
 
   if (activeExperience === "effects") renderEffects(now);
@@ -1323,6 +1451,7 @@ function render(now) {
   else if (activeExperience === "sign") renderSignLab(now);
   else if (activeExperience === "pong") renderPong(now);
   else if (activeExperience === "reader") renderSignReader(now);
+  else studio.render(now, latestHands);
 
   paintModeChip();
   const instantFps = 1000 / Math.max(1, now - previousFrameTime);
@@ -1334,6 +1463,19 @@ function render(now) {
 
 startButton.disabled = true;
 startButton.addEventListener("click", startCamera);
+document.querySelector("#undoDrawing").addEventListener("click", () => restoreDrawing("undo"));
+document.querySelector("#redoDrawing").addEventListener("click", () => restoreDrawing("redo"));
+document.querySelector("#clearDrawing").addEventListener("click", clearDrawing);
+document.querySelector("#saveDrawing").addEventListener("click", () => {
+  finishDrawingStroke(); saveCanvas(drawing, "visionshift-drawing.png", "#101820");
+});
+document.querySelector("#brushSize").addEventListener("change", event => {
+  finishDrawingStroke(); drawState.editing = false; drawState.width = Number(event.target.value);
+});
+document.querySelector("#cleanBoard").addEventListener("change", event => { drawState.board = event.target.checked; });
+document.querySelector("#saveSnapshot").addEventListener("click", () => {
+  if (video.srcObject) saveCanvas(canvas, "visionshift-snapshot.png");
+});
 captureButton.addEventListener("click", captureBackground);
 window.addEventListener("visionshift:experience", (event) => {
   setExperience(event.detail?.experience);
@@ -1347,6 +1489,10 @@ clearReaderButton.addEventListener("click", clearReaderTranscript);
 speakReaderButton.addEventListener("click", speakReaderTranscript);
 forgetSignsButton.addEventListener("click", forgetReaderSigns);
 window.addEventListener("keydown", (event) => {
+  if (event.target.matches?.("input, textarea, select, [contenteditable=true]")) return;
+  if (activeExperience === "draw" && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+    event.preventDefault(); restoreDrawing(event.shiftKey ? "redo" : "undo");
+  }
   if (activeExperience === "pong" && ["ArrowUp", "ArrowDown"].includes(event.key)) event.preventDefault();
   if (event.key === "ArrowUp") pong.keyboardDirection = -1;
   if (event.key === "ArrowDown") pong.keyboardDirection = 1;
@@ -1357,6 +1503,12 @@ window.addEventListener("keyup", (event) => {
 });
 window.addEventListener("resize", () => {
   if (video.srcObject) resizeCanvases();
+});
+window.addEventListener("blur", () => { pong.keyboardDirection = 0; });
+document.addEventListener("visibilitychange", () => {
+  finishDrawingStroke(); drawState.editing = false; drawState.pinchGate.reset();
+  drawState.command.reset(); drawState.smoothedPoint = null;
+  studio.enter(activeExperience);
 });
 
 syncColorSwatches();
