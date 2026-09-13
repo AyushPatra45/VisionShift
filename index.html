@@ -56,7 +56,7 @@
           <span><strong>Sign Reader</strong><small>Teach · read · speak</small></span>
         </button>
         <button class="experience-button" data-experience="frame" aria-pressed="false"><span class="experience-number">08</span><span><strong>Hand Frame</strong><small>Two hands · floating photo</small></span></button>
-        <button class="experience-button" data-experience="face" aria-pressed="false"><span class="experience-number">09</span><span><strong>Expression FX</strong><small>Smile · wink · surprise</small></span></button>
+        <button class="experience-button" data-experience="face" aria-pressed="false"><span class="experience-number">09</span><span><strong>Reaction Memes</strong><small>Your face · your memes</small></span></button>
         <button class="experience-button" data-experience="focus" aria-pressed="false"><span class="experience-number">10</span><span><strong>Study Reminder</strong><small>Eyes-closed reminder</small></span></button>
       </nav>
 
@@ -146,10 +146,18 @@
             <label><input type="checkbox" id="cleanBoard" /> Clean board</label>
           </div>
           <div class="studio-tools" id="frameTools" hidden>
-            <label>Style <select id="frameStyle"><option value="neon">Neon</option><option value="mono">Monochrome</option><option value="pop">Pop color</option><option value="normal">Natural</option></select></label>
+            <label>Local style <select id="frameStyle"><option value="neon">Neon edges</option><option value="thermal">Thermal</option><option value="sketch">Pencil edges</option><option value="pixel">Pixel art</option><option value="mono">Monochrome</option><option value="pop">Poster ink</option><option value="normal">Natural</option></select></label>
             <button id="freezeFrame" aria-pressed="false">Freeze photo</button>
+            <button id="recaptureFrame">Capture photo</button><label><input type="checkbox" id="liveFrame" /> Live texture</label>
+            <p id="frameHint">Open both thumbs and index fingers to form four corners. Pinch to capture, then open and tilt your hands.</p>
+            <span class="tool-hint">Local styles only. The original FLUX-generated art needs a configured backend; it is not connected here.</span>
           </div>
-          <div class="studio-tools" id="faceTools" hidden><button id="testConfetti">Try confetti</button></div>
+          <div class="studio-tools" id="faceTools" hidden>
+            <button id="calibrateFace">Calibrate neutral face · 7s</button>
+            <label>Reaction <select id="reactionSelect"></select></label><button id="testConfetti">Preview selected meme</button>
+            <label>Replace selected meme <input id="reactionUpload" type="file" accept="image/png,image/jpeg,image/gif,image/webp" /></label>
+            <p id="reactionInfo">Try a gasp, heart hands, cover your mouth, finger on lips, hand up, nose scrunch, or side-eye. Leave the frame for the spinning meme.</p>
+          </div>
           <div class="studio-tools" id="focusTools" hidden>
             <label>Eyes closed for <select id="eyeDelay"><option value="1.8">1.8 seconds</option><option value="3">3 seconds</option><option value="5">5 seconds</option></select></label>
             <label><input id="reminderSound" type="checkbox" /> Gentle sound</label>
@@ -237,19 +245,19 @@
         </div>
         <div class="control-panel" data-experience-panel="frame">
           <div class="gesture-grid gesture-grid-three">
-            <article class="gesture-card"><span class="key">01</span><span class="hand">↔</span><div><h3>Show two hands</h3><p>Index fingertips set opposite corners</p></div></article>
+            <article class="gesture-card"><span class="key">01</span><span class="hand">↔</span><div><h3>Show two hands</h3><p>Thumbs + index tips set four corners</p></div></article>
             <article class="gesture-card"><span class="key">02</span><span class="hand">◱</span><div><h3>Shape the frame</h3><p>Move fingers apart and diagonally to resize</p></div></article>
             <article class="gesture-card"><span class="key">03</span><span class="hand">▣</span><div><h3>Freeze + style</h3><p>Use the controls below the camera, then save a snapshot</p></div></article>
           </div>
-          <p class="module-note">Keep both hands visible. If one disappears, the frame stays in its last position. Pop color is a live color filter, not AI-generated art.</p>
+          <p class="module-note">Adapted from <a href="https://github.com/tubakhxn/HandFrame-AI">Tuba Khan’s HandFrame-AI</a>. Both thumb tips and index tips anchor a perspective-warped photo. Pinch to recapture. Local styles are image-processing effects, not generated art. FLUX generation requires a separate backend and user-approved image upload.</p>
         </div>
         <div class="control-panel" data-experience-panel="face">
           <div class="gesture-grid gesture-grid-three">
-            <article class="gesture-card"><span class="key">01</span><span class="hand">☺</span><div><h3>Smile</h3><p>Celebrate with confetti</p></div></article>
-            <article class="gesture-card"><span class="key">02</span><span class="hand">◎</span><div><h3>Open your mouth</h3><p>Send out blue energy rings</p></div></article>
-            <article class="gesture-card"><span class="key">03</span><span class="hand">✧</span><div><h3>Wink</h3><p>Trigger a pink sparkle</p></div></article>
+            <article class="gesture-card"><span class="key">01</span><span class="hand">◎</span><div><h3>Gasp</h3><p>Open your mouth for a reaction meme</p></div></article>
+            <article class="gesture-card"><span class="key">02</span><span class="hand">♡</span><div><h3>Heart hands</h3><p>Bring index tips and thumb tips together</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">✋</span><div><h3>Hand beside head</h3><p>Raise an open hand above nose level</p></div></article>
           </div>
-          <p class="module-note">Face the camera, keep your face well lit, and hold an expression briefly. These visual effects run inside VisionShift; they do not install a virtual camera for meeting apps.</p>
+          <p class="module-note">Adapted from <a href="https://github.com/gazijarin/itsgiving">Gazi’s itsgiving</a>. Calibrate with a relaxed face, then try the listed reactions. Meme images follow your head; custom PNG/JPEG/WebP/GIF uploads stay in this session. Nine reactions are supported here, not all fourteen desktop reactions. Meeting-app virtual-camera output is not installed. <a href="./THIRD_PARTY_NOTICES.md">Credits and licenses</a>.</p>
         </div>
         <div class="control-panel" data-experience-panel="focus">
           <div class="gesture-grid gesture-grid-three">
@@ -316,11 +324,11 @@
           },
           frame: {
             eyebrow: "EXPERIENCE 08 / HAND FRAME", stage: "HAND FRAME / LIVE",
-            description: "Move two index fingers to position and resize a floating camera frame. Switch styles or freeze a photo inside it.",
+            description: "Frame a photo with both thumbs and index fingers. Pinch to capture, tilt your hands to warp its perspective, and explore local artistic styles.",
           },
           face: {
             eyebrow: "EXPERIENCE 09 / EXPRESSION FX", stage: "EXPRESSION FX / LIVE",
-            description: "Smile for confetti, open your mouth for energy rings, or wink for a sparkle. Your expressions control the effects.",
+            description: "Your reactions become memes. Gasp, make heart hands, cover your mouth, or raise a hand to trigger a head-following image.",
           },
           focus: {
             eyebrow: "EXPERIENCE 10 / STUDY REMINDER", stage: "STUDY REMINDER / EXPERIMENT",

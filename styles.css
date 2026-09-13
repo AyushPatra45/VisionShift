@@ -160,6 +160,9 @@ h1 em { color: var(--acid); font-style: normal; }
 
 .studio-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 14px 0 0; }
 .studio-tools[hidden] { display: none; }
+.reaction-overlay { position:absolute; z-index:1; object-fit:contain; pointer-events:none; border-radius:8px; box-shadow:0 8px 32px #0008; }
+.reaction-overlay[hidden] { display:none; }
+.studio-tools input[type="file"] { width: min(100%,240px); height:auto; font-size:11px; }
 .studio-tools button, .studio-tools select { min-height: 42px; padding: 9px 12px; color: var(--ink); border: 1px solid #414853; border-radius: 6px; background: #121922; font: 12px "DM Sans", sans-serif; }
 .studio-tools button { cursor: pointer; }
 .studio-tools button:hover:not(:disabled) { border-color: var(--acid); color: var(--acid); }

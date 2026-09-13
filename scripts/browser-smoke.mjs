@@ -24,7 +24,7 @@ try {
   });
   await page.route("**/camera-studio.js", async route => {
     const source = await readFile(new URL("../camera-studio.js",import.meta.url),"utf8");
-    await route.fulfill({contentType:"text/javascript",body:source.replace("return { enter, render, get label()", `window.__studioTest = { setFace(result) { faceModel.detectForVideo = () => result; lastVideo = -1; }, get frame() { return frame; } };\n  return { enter, render, get label()`)});
+    await route.fulfill({contentType:"text/javascript",body:source.replace("return { enter, render, get label()", `window.__studioTest = { setFace(result) { faceModel.detectForVideo = () => result; lastVideo = -1; lastFaceAt = 0; } };\n  return { enter, render, get label()`)});
   });
   await page.goto(`http://127.0.0.1:${port}/`);
   await page.waitForFunction(()=>!document.querySelector("#startButton").disabled,{},{timeout:60000});
@@ -42,19 +42,19 @@ try {
   const faceChecks = await page.evaluate(()=>{
     const t=window.__visionTest, s=window.__studioTest;
     const points=Array.from({length:478},()=>({x:.5,y:.4,z:0}));
+    points[234]={x:.3,y:.4};points[454]={x:.7,y:.4};
     const render=(shapes,now)=>{
       s.setFace({faceLandmarks:[points],faceBlendshapes:[{categories:Object.entries(shapes).map(([categoryName,score])=>({categoryName,score}))}]});
       t.studio.render(now,[]); return t.studio.label;
     };
     t.studio.enter("face");
     render({jawOpen:.9},20000);const mouth=render({jawOpen:.9},20300);
-    render({mouthSmileLeft:.9,mouthSmileRight:.9},21000);const smile=render({mouthSmileLeft:.9,mouthSmileRight:.9},21300);
-    render({eyeBlinkLeft:.9,eyeBlinkRight:.1},22000);const wink=render({eyeBlinkLeft:.9,eyeBlinkRight:.1},22300);
+    render({noseSneerLeft:.9},21000);const disgust=render({noseSneerLeft:.9},21300);
     t.studio.enter("focus");
     render({eyeBlinkLeft:.9,eyeBlinkRight:.9},23000);const reminder=render({eyeBlinkLeft:.9,eyeBlinkRight:.9},25000);
-    return {mouth,smile,wink,reminder};
+    return {mouth,disgust,reminder};
   });
-  assert.deepEqual(faceChecks,{mouth:"WOW",smile:"CONFETTI",wink:"WINK",reminder:"TAKE A MOMENT"});
+  assert.deepEqual(faceChecks,{mouth:"GASP",disgust:"DISGUST",reminder:"TAKE A MOMENT"});
   console.log("PASS: expression effects and sustained-closure reminder with synthetic landmarks");
   const maskCheck = await page.evaluate(()=>{
     const t=window.__visionTest;
@@ -67,14 +67,22 @@ try {
   console.log("PASS: empty cloak masks stay empty, person masks stay opaque");
   await page.locator('[data-experience="frame"].experience-button').click();
   await page.evaluate(()=>{
-    const hand=(x,y)=>Array.from({length:21},()=>({x,y,z:0}));
-    window.__visionTest.studio.render(27000,[hand(.2,.2),hand(.8,.8)]);
+    const hand=x=>Array.from({length:21},(_,i)=>({x,y:i===4?.7:.2,z:0}));
+    window.__visionTest.studio.render(27000,[hand(.2),hand(.8)]);
   });
   await page.locator("#frameStyle").selectOption("pop");
   await page.locator("#freezeFrame").click();
   assert.equal(await page.locator("#freezeFrame").getAttribute("aria-pressed"),"true");
   await page.locator("#freezeFrame").click();
   assert.equal(await page.locator("#freezeFrame").getAttribute("aria-pressed"),"false");
+  await mkdir("/tmp/visionshift-qa",{recursive:true});
+  await page.screenshot({path:"/tmp/visionshift-qa/reel-frame.png",fullPage:true});
+  await page.locator('[data-experience="face"].experience-button').click();
+  await page.locator("#reactionSelect").selectOption("heart");
+  await page.locator("#testConfetti").click();
+  await page.locator(".reaction-overlay").waitFor({state:"visible"});
+  assert.equal(await page.locator(".reaction-overlay").getAttribute("alt"),"Heart hands");
+  await page.screenshot({path:"/tmp/visionshift-qa/reel-meme.png",fullPage:true});
   await page.locator('[data-experience="draw"].experience-button').click();
   const ink = await page.evaluate(()=>{
     const t=window.__visionTest;
@@ -137,7 +145,7 @@ try {
   await recovery.waitForFunction(()=>document.querySelector("#studioMessage").textContent.includes("unavailable"),{},{timeout:20000});
   await recovery.unroute("**/models/face_landmarker.task");
   await recovery.locator("#retryFace").click();
-  await recovery.waitForFunction(()=>document.querySelector("#modeChip").textContent === "FACE THE CAMERA",{},{timeout:60000});
+  await recovery.waitForFunction(()=>["FACE THE CAMERA","LEAVE FRAME"].includes(document.querySelector("#modeChip").textContent),{},{timeout:60000});
   await recovery.close();
   console.log("PASS: face-model outage shows an actionable error and Retry recovers");
 } finally { await browser?.close(); server.kill(); }

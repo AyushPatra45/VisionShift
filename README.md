@@ -53,11 +53,11 @@ This is a small personalized communication experiment, **not an ASL/ISL translat
 
 ### 08 · Hand Frame
 
-Show both hands and move your index fingertips diagonally apart: they control opposite corners of a floating camera frame. The frame smoothly follows both fingers and stays put when tracking is lost. Choose Neon, Monochrome, Pop color, or Natural; **Freeze photo** holds a still inside the frame, while **Use live frame** restores video. **Save camera snapshot** exports the mirrored composition. These are Canvas color filters, not generative AI art.
+Open both thumbs and index fingers: these four fingertips anchor a perspective-warped image. Pinch to capture a new photo, then reopen your hands and tilt/move the panel. Local styles include thermal, pencil edges, pixel art, monochrome, poster ink and neon edges. **Live texture** updates the image continuously; **Capture photo** is a manual alternative. Adapted from [Tuba Khan's HandFrame-AI](https://github.com/tubakhxn/HandFrame-AI), with [license notices](./THIRD_PARTY_NOTICES.md). The original project's FLUX generation is **not connected**: it requires a backend/key and approval to upload captured images. These local effects are not AI-generated paintings.
 
-### 09 · Expression FX
+### 09 · Reaction Memes
 
-Face the camera in good light. Smile for confetti, open your mouth for energy rings, or wink for a sparkle. Hold briefly to avoid accidental triggers. **Try confetti** is also available as a button. Effects appear in this website; a virtual camera for Zoom/Meet is not installed. The face model loads only when a face mode is selected, with GPU/CPU fallback and a retry control.
+Adapted from [Gazi's itsgiving](https://github.com/gazijarin/itsgiving), using its reaction assets and face-relative pose rules with attribution. Nine reactions: gasp, heart hands, covered mouth, hands on head with mouth open, finger on lips, raised hand, nose scrunch, side-eye, and leaving the frame. Meme images follow the head; the leave-frame GIF animates. Calibrate a neutral face for seven seconds to personalize the resting baseline. Preview each reaction manually or replace its image/GIF with a local upload (session-only, maximum 12 MB). This is a browser subset, not all fourteen original reactions; body-pose and tongue detectors are not included. It does not install a virtual camera for Zoom/Meet. Face tracking loads on demand, and hand inference also runs for this mode.
 
 ### 10 · Study Reminder (experimental)
 

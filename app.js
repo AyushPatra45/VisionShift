@@ -81,12 +81,12 @@ const EXPERIENCE_META = Object.freeze({
   frame: {
     eyebrow: "EXPERIENCE 08 / HAND FRAME",
     stage: "HAND FRAME / LIVE",
-    description: "Move two index fingers to position and resize a floating camera frame. Switch styles or freeze a photo inside it.",
+    description: "Frame a photo with both thumbs and index fingers. Pinch to capture, tilt your hands to warp its perspective, and explore local artistic styles.",
   },
   face: {
     eyebrow: "EXPERIENCE 09 / EXPRESSION FX",
     stage: "EXPRESSION FX / LIVE",
-    description: "Smile for confetti, open your mouth for energy rings, or wink for a sparkle. Your expressions control the effects.",
+    description: "Your reactions become memes. Gasp, make heart hands, cover your mouth, or raise a hand to trigger a head-following image.",
   },
   focus: {
     eyebrow: "EXPERIENCE 10 / STUDY REMINDER",
@@ -1450,7 +1450,7 @@ function paintModeChip() {
 
 function render(now) {
   if (document.hidden) { requestAnimationFrame(render); return; }
-  if (!["face", "focus"].includes(activeExperience) && video.currentTime !== lastVideoTime && now - lastRecognitionAt >= RECOGNITION_INTERVAL_MS) {
+  if (activeExperience !== "focus" && video.currentTime !== lastVideoTime && now - lastRecognitionAt >= (activeExperience === "face" ? 65 : RECOGNITION_INTERVAL_MS)) {
     lastVideoTime = video.currentTime;
     lastRecognitionAt = now;
     try { updateRecognition(recognizer.recognizeForVideo(video, now)); }

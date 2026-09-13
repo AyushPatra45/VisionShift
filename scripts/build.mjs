@@ -16,6 +16,9 @@ const files = [
   "pong-utils.js",
   "studio-utils.js",
   "camera-studio.js",
+  "reel-utils.js",
+  "reel-renderer.js",
+  "THIRD_PARTY_NOTICES.md",
 ];
 
 rmSync(output, { recursive: true, force: true });
