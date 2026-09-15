@@ -18,6 +18,7 @@ const files = [
   "camera-studio.js",
   "reel-utils.js",
   "reel-renderer.js",
+  "bloom-studio.js",
   "THIRD_PARTY_NOTICES.md",
 ];
 

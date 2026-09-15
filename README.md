@@ -1,6 +1,6 @@
 # VisionShift
 
-VisionShift is a browser-based computer-vision playground with **ten live camera experiences** controlled by hands and expressions. MediaPipe tracks hand landmarks, segments people, and detects facial expressions locally; camera frames are not uploaded by this project.
+VisionShift is a browser-based computer-vision playground with **eleven live camera experiences** controlled by hands and expressions. MediaPipe tracks hand landmarks, segments people, and detects facial expressions locally; camera frames are not uploaded by this project.
 
 ## Experiences and controls
 
@@ -25,7 +25,7 @@ For the cleanest cloak, keep the camera fixed, step fully out of frame, capture 
 | Victory sign | Cycle through the ink palette |
 | Hold a closed fist | Clear the canvas |
 
-Keep the middle, ring, and pinky fingers folded. The pointing gate tolerates brief tracking dropouts and noisy gesture labels. Choose **Plain ink**, **Rainbow line**, or **Flower trail** in the Style menu below the camera. Flowers are spaced by movement, so holding still does not pile up stamps; brush size controls their size. Commands require a 250 ms hold after the pen lifts. Undo and redo retain the last 16 edits (including erases and clears). Choose Fine/Medium/Bold, toggle a clean board, or save a PNG without the camera background. ⌘/Ctrl+Z undoes; add Shift to redo. Keep the whole hand visible, use even front lighting, and move deliberately; tracking cannot recover long gaps or motion outside the image.
+Keep the middle, ring, and pinky fingers folded. The pointing gate tolerates brief tracking dropouts and noisy gesture labels. The brush menu includes **Smooth ink**, **Neon ribbon**, **Rainbow ribbon**, and real distance-spaced **Daisy**, **Star**, **Heart**, **Sparkle**, and **Spider-lily** stamps. Holding still does not pile up stamps; brush size controls their size. Commands require a 250 ms hold after the pen lifts. Undo and redo retain the last 16 edits (including erases and clears). Choose Fine/Medium/Bold, toggle a clean board, or save a PNG without the camera background. ⌘/Ctrl+Z undoes; add Shift to redo. Keep the whole hand visible, use even front lighting, and move deliberately; tracking cannot recover long gaps or motion outside the image.
 
 ### 03 · Hand HUD
 
@@ -53,15 +53,29 @@ This is a small personalized communication experiment, **not an ASL/ISL translat
 
 ### 08 · Hand Frame
 
-Open both thumbs and index fingers: these four fingertips anchor a perspective-warped image. Pinch to capture a new photo, then reopen your hands and tilt/move the panel. Local styles include thermal, pencil edges, pixel art, monochrome, poster ink and neon edges. **Live texture** updates the image continuously; **Capture photo** is a manual alternative. Adapted from [Tuba Khan's HandFrame-AI](https://github.com/tubakhxn/HandFrame-AI), with [license notices](./THIRD_PARTY_NOTICES.md). The original project's FLUX generation is **not connected**: it requires a backend/key and approval to upload captured images. These local effects are not AI-generated paintings.
+The default **Easy two-hand hold** uses both palm centers: hand distance resizes the floating photo and the angle between the palms rotates it without corner flipping. Pinch once to capture, choose **Live texture**, or load a local PNG/JPEG/WebP. The optional **Four fingertip corners** control keeps the original free-perspective interaction. Local styles include thermal, pencil edges, pixel art, monochrome, poster ink and neon edges. Adapted from [Tuba Khan's HandFrame-AI](https://github.com/tubakhxn/HandFrame-AI), with [license notices](./THIRD_PARTY_NOTICES.md). The original project's FLUX generation is **not connected**: it requires a backend/key and approval to upload captured images. These local effects are not AI-generated paintings.
 
 ### 09 · Reaction Memes
 
-Adapted from [Gazi's itsgiving](https://github.com/gazijarin/itsgiving), using its reaction assets and face-relative pose rules with attribution. Nine reactions: gasp, heart hands, covered mouth, hands on head with mouth open, finger on lips, raised hand, nose scrunch, side-eye, and leaving the frame. Meme images follow the head; the leave-frame GIF animates. Calibrate a neutral face for seven seconds to personalize the resting baseline. Preview each reaction manually or replace its image/GIF with a local upload (session-only, maximum 12 MB). This is a browser subset, not all fourteen original reactions; body-pose and tongue detectors are not included. It does not install a virtual camera for Zoom/Meet. Face tracking loads on demand, and hand inference also runs for this mode.
+Adapted from [Gazi's itsgiving](https://github.com/gazijarin/itsgiving), using its reaction assets and face-relative pose rules with attribution. Nine reactions: gasp, heart hands, covered mouth, hands on head with mouth open, finger on lips, raised hand, nose scrunch, side-eye, and leaving the frame. Meme cards follow the head, animate into view, and show a live reaction label; the leave-frame GIF animates. Calibrate a neutral face for three seconds to personalize the resting baseline. Preview each reaction manually or replace its image/GIF with a local upload (session-only, maximum 12 MB). This is a browser subset, not all fourteen original reactions; body-pose and tongue detectors are not included. It does not install a virtual camera for Zoom/Meet. Face tracking loads on demand, and hand inference also runs for this mode.
 
 ### 10 · Study Reminder (experimental)
 
-Choose an eyes-closed delay (1.8, 3, or 5 seconds). Sustained closure of both eyes triggers a visual reminder; optionally enable a gentle sound. Normal short blinks are ignored, and missing faces reset the timer. **This does not measure attention, studying, fatigue, or health, and must not be used for driving or safety monitoring.** Glasses, head pose, and lighting can cause incorrect results. No monitoring history is saved.
+Choose an eyes-closed delay (1.8, 3, or 5 seconds). Sustained closure of both eyes triggers a full-screen visual warning, a repeating four-tone alarm, and a spoken wake-up message every few seconds until the eyes reopen. **Test voice alarm** verifies sound before a study session. Normal short blinks are ignored, and missing faces reset the timer. **This does not measure attention, studying, fatigue, or health, and must not be used for driving or safety monitoring.** Glasses, head pose, and lighting can cause incorrect results. No monitoring history is saved.
+
+### 11 · Bloom Studio
+
+Choose one of five local, procedural scenes:
+
+| Scene | Hand control |
+| --- | --- |
+| Flower Wand | Point to plant colorful species; open the palm to scatter them with gravity |
+| Red Blooms | Point and move to paint glowing red flowers and growing stems |
+| Two-hand Garden | Left-side thumb/index spread grows the structure; right-side spread opens the flower |
+| Spider Lilies | Each hand anchors a crimson lily; pinch closes the bud and spreading opens it |
+| Particle Storm | One palm repels the field; two nearby palms pull it into a magnetic vortex |
+
+The scene ideas are adapted into Canvas 2D from the supplied reels and informed by [Magical Wands](https://github.com/Axshatt/Magical-Wands), the [spider-lily interaction](https://github.com/cupidbity/spiderlily), and common palm-force particle simulations. No Instagram media is bundled and no external generation API is used.
 
 ### Better cloak capture
 
@@ -128,15 +142,16 @@ Webcam frame
     │
     └── Experience router
             ├── Reality FX  → segmentation + Canvas compositing
-            ├── Air Canvas  → index-up geometry + ink/rainbow/flower layer
+            ├── Air Canvas  → index-up geometry + ribbon/shape-stamp layer
             ├── Hand HUD    → landmark connection renderer
             ├── Orb Game    → fingertip collision + pinch state
             ├── Sign Lab    → finger-state patterns + hold progress
             ├── Neon Pong   → palm-driven paddle + ball physics
             ├── Sign Reader → learned normalized poses + local transcript
-            ├── Hand Frame → two-hand geometry + styled viewport
-            ├── Expression FX → blendshapes + visual effects
-            └── Study Reminder → eye closure duration + optional sound
+            ├── Hand Frame → stable palm transform / four-corner perspective
+            ├── Reaction Memes → blendshapes + attributed reaction cards
+            ├── Study Reminder → eye closure + repeating voice/alarm
+            └── Bloom Studio → procedural flowers + particle physics
 ```
 
 One recognition result is shared across all experiences, so switching modules does not load another hand model. Rendering and interaction happen with Canvas 2D and vanilla JavaScript modules.
@@ -148,7 +163,7 @@ See [PROJECT_GUIDE.md](./PROJECT_GUIDE.md) for the internal state, module logic,
 - Camera processing happens in the browser. This project's code does not record, store, or upload camera frames.
 - Models and runtime assets are served with the static site, so no backend or API key is required.
 - Recognition quality depends on lighting, hand visibility, camera angle, motion blur, and device performance.
-- The app tracks one hand. Gestures that overlap the face/body or leave the frame may be missed.
+- The app tracks up to two hands. Gestures that overlap the face/body or leave the frame may be missed.
 - The cloak cannot reconstruct what the camera never saw; it uses a previously captured empty-scene reference and works best with a stationary camera and steady lighting.
 - Sign Lab recognizes only five simplified, static finger-state patterns and has the important language/accessibility limitations described above.
 - Personal Sign Reader recognizes only signer-specific static poses that the current user teaches it; it is not a sign-language translator.

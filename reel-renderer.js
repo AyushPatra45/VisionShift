@@ -1,17 +1,19 @@
-import { REACTIONS, chooseReaction, handQuad, projectQuad } from "./reel-utils.js";
+import { REACTIONS, chooseReaction, easyFrameQuad, handQuad, projectQuad } from "./reel-utils.js";
 import { HeldAction } from "./studio-utils.js";
 import { isPinching } from "./interaction-utils.js";
 
 export function createReelRenderer(video,canvas,ctx) {
   const assets=new Map(), gate=new HeldAction(220);
   let shown=null, until=0, manualUntil=0, baseline={}, calibratingUntil=0, samples=[];
-  let quad=null,pinchLatched=false, captured=false, lastStyleAt=0;
+  let quad=null,pinchLatched=false, captured=false, lastStyleAt=0, lastReaction=null, flashUntil=0;
   const photo=document.createElement("canvas"), texture=document.createElement("canvas");
   photo.width=texture.width=320;photo.height=texture.height=320;
   const pc=photo.getContext("2d"),tc=texture.getContext("2d",{willReadFrequently:true});
   const overlay=document.createElement("img");
   overlay.className="reaction-overlay";overlay.alt="";overlay.hidden=true;
   document.querySelector("#stage").append(overlay);
+  const reactionBadge=document.createElement("span");reactionBadge.className="reaction-badge";reactionBadge.hidden=true;
+  document.querySelector("#stage").append(reactionBadge);
   for(const name of Object.keys(REACTIONS)) {
     const img=new Image();img.src=`./assets/reactions/${name}.${name==="spin"?"gif":"jpeg"}`;assets.set(name,img);
   }
@@ -19,7 +21,7 @@ export function createReelRenderer(video,canvas,ctx) {
   for(const [value,text] of Object.entries(REACTIONS))select.add(new Option(text,value));
   document.querySelector("#testConfetti").textContent="Preview selected meme";
   document.querySelector("#testConfetti").addEventListener("click",()=>{shown=select.value;manualUntil=performance.now()+2500;});
-  document.querySelector("#calibrateFace").addEventListener("click",()=>{samples=[];calibratingUntil=performance.now()+7000;});
+  document.querySelector("#calibrateFace").addEventListener("click",()=>{samples=[];calibratingUntil=performance.now()+3000;});
   const upload=document.querySelector("#reactionUpload");
   upload.addEventListener("change",()=>{
     const file=upload.files[0];if(!file)return;
@@ -28,35 +30,51 @@ export function createReelRenderer(video,canvas,ctx) {
     img.onload=()=>{const old=assets.get(select.value);if(old?.src.startsWith("blob:"))URL.revokeObjectURL(old.src);assets.set(select.value,img);info.textContent="Custom meme ready. Kept only in this session.";};
     img.onerror=()=>{URL.revokeObjectURL(url);info.textContent="Could not read that image.";};img.src=url;
   });
-  function hide(){overlay.hidden=true;gate.reset();shown=null;until=0;manualUntil=0;calibratingUntil=0;}
+  function hide(){overlay.hidden=true;reactionBadge.hidden=true;gate.reset();shown=null;lastReaction=null;until=0;manualUntil=0;calibratingUntil=0;}
   function reactions(points,hands,shapes,now,ready) {
     if(calibratingUntil) {
       if(points)samples.push({...shapes});
       info.textContent=`Keep a relaxed neutral face: ${Math.max(0,Math.ceil((calibratingUntil-now)/1000))}s`;
       if(now>=calibratingUntil){calibratingUntil=0;
-        if(samples.length<20)info.textContent="Not enough face samples. Face the camera and calibrate again.";
+        if(samples.length<15)info.textContent="Not enough face samples. Face the camera and calibrate again.";
         else {baseline={};for(const key of Object.keys(samples[0]))baseline[key]=samples.reduce((s,x)=>s+(x[key]||0),0)/samples.length;info.textContent="Neutral face calibrated. Try the gestures below.";}
       }
-      overlay.hidden=true;return "CALIBRATING";
+      overlay.hidden=true;reactionBadge.hidden=true;return "CALIBRATING";
     }
-    if(!ready){overlay.hidden=true;return null;}
+    if(!ready){overlay.hidden=true;reactionBadge.hidden=true;return null;}
     if(now>manualUntil){const hit=gate.update(chooseReaction(points,hands,shapes,baseline),now);if(hit){shown=hit;until=now+450;}else if(now>until)shown=null;}
     const img=assets.get(shown);
-    if(!img?.complete||!img.naturalWidth){overlay.hidden=true;return null;}
+    if(!img?.complete||!img.naturalWidth){overlay.hidden=true;reactionBadge.hidden=true;lastReaction=null;return null;}
     let x=canvas.width*.5,y=canvas.height*.35,w=canvas.width*.38;
     if(points?.[454]){w=Math.max(110,Math.hypot(points[234].x-points[454].x,points[234].y-points[454].y)*canvas.width*1.6);x=points[1].x*canvas.width;y=points[10].y*canvas.height-w*.35;}
     w=Math.min(canvas.width*.65,w);const h=Math.min(canvas.height*.65,w*img.naturalHeight/img.naturalWidth);
     x=Math.max(w/2,Math.min(canvas.width-w/2,x));y=Math.max(h/2+20,Math.min(canvas.height-h/2,y));
-    overlay.src=img.src;overlay.hidden=false;
+    if(lastReaction!==shown){overlay.src=img.src;overlay.classList.remove("reaction-pop");void overlay.offsetWidth;overlay.classList.add("reaction-pop");lastReaction=shown;}
+    overlay.hidden=false;
     overlay.style.left=`${(1-(x+w/2)/canvas.width)*100}%`;overlay.style.top=`${(y-h/2)/canvas.height*100}%`;
     overlay.style.width=`${w/canvas.width*100}%`;overlay.style.height=`${h/canvas.height*100}%`;
     overlay.alt=REACTIONS[shown];
-    // Mirror the bitmap once before the output canvas is mirrored by CSS.
-    ctx.save();ctx.translate(x+w/2,y-h/2);ctx.scale(-1,1);ctx.drawImage(img,0,0,w,h);ctx.restore();
+    reactionBadge.textContent=`LIVE REACTION · ${REACTIONS[shown].toUpperCase()}`;reactionBadge.hidden=false;
     return REACTIONS[shown].toUpperCase();
   }
-  function capture(){if(!video.videoWidth)return;const size=Math.min(video.videoWidth,video.videoHeight);pc.drawImage(video,(video.videoWidth-size)/2,(video.videoHeight-size)/2,size,size,0,0,320,320);captured=true;}
-  document.querySelector("#recaptureFrame").addEventListener("click",capture);
+  function drawCover(source){
+    const sw=source.videoWidth||source.naturalWidth,sh=source.videoHeight||source.naturalHeight;if(!sw||!sh)return false;
+    const sourceAspect=sw/sh,targetAspect=photo.width/photo.height;let sx=0,sy=0,cw=sw,ch=sh;
+    if(sourceAspect>targetAspect){cw=sh*targetAspect;sx=(sw-cw)/2;}else{ch=sw/targetAspect;sy=(sh-ch)/2;}
+    pc.clearRect(0,0,photo.width,photo.height);pc.drawImage(source,sx,sy,cw,ch,0,0,photo.width,photo.height);return true;
+  }
+  function capture(){if(!drawCover(video))return;captured=true;flashUntil=performance.now()+180;}
+  document.querySelector("#recaptureFrame").addEventListener("click",()=>{capture();document.querySelector("#frameHint").textContent="Camera photo captured. Hold both hands apart to float it.";});
+  const frameUpload=document.querySelector("#frameUpload");
+  frameUpload.addEventListener("change",()=>{
+    const file=frameUpload.files[0];if(!file)return;
+    if(!["image/png","image/jpeg","image/webp"].includes(file.type)||file.size>12*1024*1024){document.querySelector("#frameHint").textContent="Choose a PNG, JPEG or WebP under 12 MB.";return;}
+    const url=URL.createObjectURL(file),image=new Image();
+    image.onload=()=>{drawCover(image);captured=true;URL.revokeObjectURL(url);document.querySelector("#frameHint").textContent="Photo loaded locally. Hold both hands apart to move and rotate it.";};
+    image.onerror=()=>{URL.revokeObjectURL(url);document.querySelector("#frameHint").textContent="That photo could not be opened.";};image.src=url;
+  });
+  const control=document.querySelector("#frameControl");
+  control.addEventListener("change",()=>{quad=null;document.querySelector("#frameHint").textContent=control.value==="easy"?"Easy mode: hold two open hands apart to move, resize and rotate the photo. Pinch once to capture.":"Perspective mode: both thumb tips and index tips become the four photo corners.";});
   function stylize(style){
     tc.drawImage(photo,0,0);
     if(style==="normal")return;
@@ -86,21 +104,28 @@ export function createReelRenderer(video,canvas,ctx) {
   }
   function frame(hands,style,frozen,now){
     const pinching=hands.some(hand=>isPinching(hand,.4));
-    if(pinching&&!pinchLatched){capture();document.querySelector("#frameHint").textContent="Photo captured. Open your hands to tilt it; pinch again to recapture.";}
+    if(pinching&&!pinchLatched){capture();document.querySelector("#frameHint").textContent="Photo captured. Open both hands and move them apart to control it.";}
     pinchLatched=pinching;
-    const target=handQuad(hands,canvas.width,canvas.height);
-    if(target&&!pinching){if(!quad)quad=target;else quad=quad.map((p,i)=>({x:p.x+(target[i].x-p.x)*.25,y:p.y+(target[i].y-p.y)*.25}));}
-    if(!quad)return "SHOW BOTH THUMBS + INDEX FINGERS";
+    const target=control.value==="perspective"?handQuad(hands,canvas.width,canvas.height):easyFrameQuad(hands,canvas.width,canvas.height);
+    if(target){if(!quad)quad=target;else quad=quad.map((p,i)=>{const d=Math.hypot(target[i].x-p.x,target[i].y-p.y),alpha=Math.min(.48,.16+d/420);return{x:p.x+(target[i].x-p.x)*alpha,y:p.y+(target[i].y-p.y)*alpha};});}
+    if(!quad)return control.value==="perspective"?"SHOW TWO L-SHAPED HANDS":"SHOW TWO HANDS APART";
     if(!captured||(!frozen&&document.querySelector("#liveFrame").checked))capture();
     if(now-lastStyleAt>100){stylize(style);lastStyleAt=now;}
-    const steps=8;
+    ctx.save();ctx.beginPath();quad.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();
+    ctx.shadowColor="rgba(0,0,0,.72)";ctx.shadowBlur=30;ctx.shadowOffsetY=18;ctx.fillStyle="#f6f0e5";ctx.fill();ctx.restore();
+    const inset=control.value==="easy"?.025:0,inner=inset?[
+      projectQuad(quad,inset,inset),projectQuad(quad,1-inset,inset),projectQuad(quad,1-inset,1-inset),projectQuad(quad,inset,1-inset)
+    ]:quad;
+    const steps=10;
     for(let y=0;y<steps;y++)for(let x=0;x<steps;x++){
       const uv=[[x,y],[x+1,y],[x+1,y+1],[x,y+1]].map(([a,b])=>({x:a/steps,y:b/steps}));
-      const dst=uv.map(p=>projectQuad(quad,p.x,p.y)),src=uv.map(p=>({x:p.x*320,y:p.y*320}));
+      const dst=uv.map(p=>projectQuad(inner,p.x,p.y)),src=uv.map(p=>({x:p.x*320,y:p.y*320}));
       triangle([src[0],src[1],src[2]],[dst[0],dst[1],dst[2]]);triangle([src[0],src[2],src[3]],[dst[0],dst[2],dst[3]]);
     }
-    ctx.strokeStyle="#c8ff42";ctx.lineWidth=2;ctx.beginPath();quad.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.stroke();
-    return "PINCH TO CAPTURE · TILT TO MOVE";
+    ctx.save();ctx.strokeStyle="#f8f2e8";ctx.lineWidth=7;ctx.beginPath();quad.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.stroke();
+    ctx.strokeStyle="#c8ff42";ctx.lineWidth=2;ctx.stroke();for(const p of quad){ctx.fillStyle="#0a0e12";ctx.strokeStyle="#c8ff42";ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill();ctx.stroke();}ctx.restore();
+    if(now<flashUntil){ctx.fillStyle=`rgba(255,255,255,${(flashUntil-now)/180*.5})`;ctx.fillRect(0,0,canvas.width,canvas.height);}
+    return control.value==="easy"?"TWO HANDS · MOVE + ROTATE · PINCH CAPTURES":"FOUR FINGERTIPS · PERSPECTIVE FRAME";
   }
   return {reactions,frame,hide};
 }

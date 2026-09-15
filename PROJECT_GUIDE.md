@@ -31,7 +31,7 @@ The cloak is reference-based, not scene reconstruction: the camera must stay fix
 
 ### 02 · Air Canvas
 
-`PointingGate` uses finger-extension geometry: index extended, middle/ring/pinky folded, thumb unrestricted. A 70 ms release grace filters noisy poses; missing tracking is tolerated for 150 ms. `smoothCanvasPoint` applies motion-adaptive smoothing, and midpoint quadratic curves join samples on a persistent offscreen canvas. Plain ink and rainbow use the same curves; rainbow hue advances with movement. Flower trails stamp six-petal flowers at distance-based intervals, with size linked to the brush control. All styles share edit history and mirrored export. An open palm erases, victory cycles colors, and a held fist clears.
+`PointingGate` uses finger-extension geometry: index extended, middle/ring/pinky folded, thumb unrestricted. A 70 ms release grace filters noisy poses; missing tracking is tolerated for 150 ms. `smoothCanvasPoint` applies motion-adaptive smoothing, and midpoint quadratic curves join samples on a persistent offscreen canvas. Smooth ink, neon and rainbow use the same connected curves; colored glow is applied only for the luminous ribbons. Daisy, star, heart, sparkle and spider-lily brushes draw real procedural shapes at distance-based intervals. All brushes share edit history and mirrored export. An open palm erases, victory cycles colors, and a held fist clears.
 
 ### 03 · Hand HUD
 
@@ -63,13 +63,23 @@ This feature is intentionally named **Personal Sign Reader**, not sign-language 
 
 ### 08–10 · Camera studios
 
-`camera-studio.js` loads face tracking and the study timer. `reel-renderer.js` implements the original-repository-inspired photo panel and reaction overlays. Four fingertips form a convex quadrilateral; a homography and subdivided Canvas triangles project the captured texture. Pinching captures a square center crop. Local CPU pixel styles are explicitly distinguished from unconnected FLUX generation. Reaction Memes runs hand and face tracking together, uses face-relative pose rules, a steady-hold gate and seven-second neutral baseline, and displays original attributed assets. A DOM overlay preserves GIF animation; the canvas includes the reaction for snapshots. Nine reactions are supported, not all fourteen desktop reactions. Bilateral eye closure still drives the experimental study reminder.
+`camera-studio.js` loads face tracking and the study timer. `reel-renderer.js` implements the original-repository-inspired photo panel and reaction overlays. Hand Frame defaults to a constrained, edge-clamped rectangle controlled by two palm centers: separation controls size and palm-to-palm angle controls rotation. An optional four-fingertip mode forms a convex quadrilateral; a homography and subdivided Canvas triangles project the captured texture. Pinching captures a center crop, and users can instead load a local photo or select a live texture. Local CPU pixel styles are explicitly distinguished from unconnected FLUX generation.
+
+Reaction Memes runs hand and face tracking together, uses face-relative pose rules, a steady-hold gate and three-second neutral baseline, and displays original attributed assets as animated cards with a live label. A DOM overlay preserves GIF animation and avoids double-rendering the same opaque card. Nine reactions are supported, not all fourteen desktop reactions.
+
+Bilateral eye closure drives the experimental Study Reminder. When its selected delay elapses, the renderer repeats a four-note alarm roughly every 2.3 seconds and a spoken warning roughly every 6.2 seconds until the eyes reopen. The audio context is unlocked from the user's camera-start or test-button click, satisfying browser autoplay restrictions. A full-screen red warning remains available if audio is disabled.
+
+### 11 · Bloom Studio
+
+`bloom-studio.js` provides five selectable scenes on the existing shared hand feed. Flower Wand and Red Blooms use a geometry-based pointing pose, movement spacing, capped object pools and an open-palm scatter latch. Two-hand Garden sorts visible hands left-to-right and normalizes each thumb/index spread: the left-side spread controls procedural stem growth while the right-side spread controls staged petal opening. Spider Lilies anchor curved petals and stamens to up to two fingertips. Particle Storm runs a bounded spring/velocity field; one palm repels particles and two nearby palms attract and swirl them. All scenes use Canvas 2D and require no backend.
 
 `studio-utils.js` contains independently tested hold timers, pointing detection, bounded drawing history, hand-frame geometry, and eye-closure state. Air Canvas gives index-up geometry priority over canned gesture labels. Command holds, adaptive smoothing, brief tracking-loss grace, and long-jump guards reduce false stroke breaks; Undo/Redo include erase/clear edits. Export mirrors the offscreen ink to match the displayed handwriting.
 
 ### Reference scope and credits
 
-The requested Instagram references were inspected in-browser: [meeting effects by Gazi Jarin](https://www.instagram.com/reel/Dc_ZvBcO9XM/), [study reminder by Swastik Biswas](https://www.instagram.com/reel/DcWrXcHzP3L/), [invisibility](https://www.instagram.com/reel/DZ4zT_XPCJw/), and [HandFrame by tuba.captures](https://www.instagram.com/reel/DbphY3JpgUN/). These additions are original browser implementations inspired by the visible concepts, not copies of the creators' code or a promise of identical results. No Instagram media is bundled.
+The requested Instagram references were inspected in-browser: [meeting effects by Gazi Jarin](https://www.instagram.com/reel/Dc_ZvBcO9XM/), [study reminder by Swastik Biswas](https://www.instagram.com/reel/DcWrXcHzP3L/), [invisibility](https://www.instagram.com/reel/DZ4zT_XPCJw/), [HandFrame by tuba.captures](https://www.instagram.com/reel/DbphY3JpgUN/), [red blooms](https://www.instagram.com/p/DaNwDTqCirt/), [flower wand](https://www.instagram.com/p/DbSGgdiN6_u/), [particle storm](https://www.instagram.com/p/Dcfb4AOvJd2/), [two-hand flower growth](https://www.instagram.com/p/DaU276SzDHs/), [a static sign classifier](https://www.instagram.com/p/DbAjdehvpn0/), [spider lilies](https://www.instagram.com/p/DbD221EJvK-/), and [mirror writing](https://www.instagram.com/p/DaFyq0Vg9U9/). These additions are browser adaptations inspired by the visible concepts, not copies of the creators' Instagram media or a promise of pixel-identical results. No Instagram media is bundled.
+
+Bloom interactions were cross-checked against the public documentation for [Magical Wands](https://github.com/Axshatt/Magical-Wands), [cupidbity/spiderlily](https://github.com/cupidbity/spiderlily), and a [hand-controlled particle system](https://github.com/chaitanya4545-ai/hand-controlled-particle-system). The local implementation is original; these projects are credited for their control patterns and design inspiration.
 
 Face tracking follows Google's [MediaPipe Web guide](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js). The version-1 model is bundled from [Google's official model storage](https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task). The [Selfie Segmentation model card](https://storage.googleapis.com/mediapipe-assets/Model%20Card%20MediaPipe%20Selfie%20Segmentation.pdf) specifies a person-probability mask. The application no longer guesses polarity per frame. Background capture has a countdown and checks for person pixels before saving.
 
@@ -79,7 +89,7 @@ API and continuous sign-language translation work remains paused; the existing p
 
 | File | Responsibility |
 | --- | --- |
-| `index.html` | Product layout, ten-experience picker, controls, status, and explanatory copy |
+| `index.html` | Product layout, eleven-experience picker, controls, status, and explanatory copy |
 | `styles.css` | Responsive visual system and experience-specific overlays |
 | `app.js` | Camera lifecycle, MediaPipe models, experience router, state, and renderers |
 | `gesture-state.js` | Stable gesture-to-effect state machine |
@@ -89,6 +99,9 @@ API and continuous sign-language translation work remains paused; the existing p
 | `sign-reader-utils.js` | Personal pose normalization, averaging, mirroring, persistence validation, and matching |
 | `pong-utils.js` | Neon Pong ball creation, movement, collision, and game events |
 | `camera-studio.js` | On-demand face model, face effects, study reminder, two-hand frame |
+| `reel-renderer.js` | Reaction cards and the easy/perspective floating photo renderer |
+| `reel-utils.js` | Reaction rules, two-hand frame geometry, and homography projection |
+| `bloom-studio.js` | Procedural flower scenes and hand-force particle simulation |
 | `studio-utils.js` | Command holds, drawing history, frame geometry, eye-closure timer |
 | `scripts/browser-smoke.mjs` | Isolated browser checks using a synthetic camera |
 | `*.test.js` | Unit tests for state and reusable geometry/classification helpers |

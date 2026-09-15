@@ -8,7 +8,7 @@ import vm from "node:vm";
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 const readSource = (path) => readFileSync(resolve(projectRoot, path), "utf8");
-const experiences = ["effects", "draw", "hud", "game", "sign", "pong", "reader", "frame", "face", "focus"];
+const experiences = ["effects", "draw", "hud", "game", "sign", "pong", "reader", "frame", "face", "focus", "bloom"];
 
 function extractInlineScript(html, marker) {
   const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
@@ -78,6 +78,7 @@ test("app imports and routes the Sign Lab, Neon Pong, and Sign Reader modules", 
   assert.match(app, /activeExperience\s*===\s*["']sign["']/);
   assert.match(app, /activeExperience\s*===\s*["']pong["']/);
   assert.match(app, /activeExperience\s*===\s*["']reader["']/);
+  assert.match(app, /activeExperience\s*===\s*["']bloom["']/);
   assert.match(app, /window\.addEventListener\(["']visionshift:experience["']/);
   assert.match(app, /setExperience\(event\.detail\?\.experience\)/);
 });
@@ -90,13 +91,14 @@ test("static build includes the experience utility assets", () => {
   assert.match(build, /["']sign-reader-utils\.js["']/);
   assert.match(build, /["']studio-utils\.js["']/);
   assert.match(build, /["']camera-studio\.js["']/);
+  assert.match(build, /["']bloom-studio\.js["']/);
 });
 
 test("studio models and controls are bundled without external API requirements", () => {
   const html = readSource("index.html");
   const studio = readSource("camera-studio.js");
   assert.ok(statSync(resolve(projectRoot,"models/face_landmarker.task")).size > 3000000);
-  for (const id of ["frameStyle","freezeFrame","eyeDelay","reminderSound","retryFace","undoDrawing","redoDrawing","saveDrawing"]) {
+  for (const id of ["frameControl","frameStyle","frameUpload","freezeFrame","eyeDelay","reminderSound","testReminder","bloomScene","clearBloom","retryFace","undoDrawing","redoDrawing","saveDrawing"]) {
     assert.ok(html.includes(`id="${id}"`));
   }
   assert.match(studio,/outputFaceBlendshapes: true/);
@@ -140,6 +142,15 @@ test("Air Canvas uses a pointing gate and continuous curved strokes", () => {
   assert.match(app, /smoothCanvasPoint\(/);
   assert.match(app, /quadraticCurveTo\(/);
   assert.match(app, /else if \(!point && drawingActive\)/);
+  for (const brush of ["flowers", "stars", "hearts", "sparkles", "lilies"]) assert.match(app, new RegExp(`\\b${brush}\\b`));
+});
+
+test("study reminder repeats an audible spoken alarm", () => {
+  const studio = readSource("camera-studio.js");
+  assert.match(studio, /SpeechSynthesisUtterance/);
+  assert.match(studio, /nextToneAt/);
+  assert.match(studio, /nextVoiceAt/);
+  assert.match(studio, /OPEN YOUR EYES TO STOP THE ALARM/);
 });
 
 test("Pages workflow keeps CI green until repository Pages is enabled", () => {

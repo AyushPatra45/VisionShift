@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#080a0f" />
-    <meta name="description" content="VisionShift is a private, on-device computer-vision playground with ten camera experiences controlled by hands and expressions." />
+    <meta name="description" content="VisionShift is a private, on-device computer-vision playground with eleven camera experiences controlled by hands and expressions." />
     <meta property="og:title" content="VisionShift — One camera. Endless play." />
     <meta property="og:description" content="Cloak, draw, inspect, learn, read personal signs, and play with real-time hand gestures in your browser." />
     <meta property="og:type" content="website" />
@@ -58,6 +58,7 @@
         <button class="experience-button" data-experience="frame" aria-pressed="false"><span class="experience-number">08</span><span><strong>Hand Frame</strong><small>Two hands · floating photo</small></span></button>
         <button class="experience-button" data-experience="face" aria-pressed="false"><span class="experience-number">09</span><span><strong>Reaction Memes</strong><small>Your face · your memes</small></span></button>
         <button class="experience-button" data-experience="focus" aria-pressed="false"><span class="experience-number">10</span><span><strong>Study Reminder</strong><small>Eyes-closed reminder</small></span></button>
+        <button class="experience-button" data-experience="bloom" aria-pressed="false"><span class="experience-number">11</span><span><strong>Bloom Studio</strong><small>Flowers · lilies · particles</small></span></button>
       </nav>
 
       <section class="hero">
@@ -66,7 +67,7 @@
           <h1>One camera.<br /><em>Endless play.</em></h1>
           <p class="lede" id="experienceDescription">Become invisible, fracture the live feed, or leave ghost echoes using only recognizable hand signs.</p>
           <div class="system-stats" aria-label="Project capabilities">
-            <div><strong>10</strong><span>experiences</span></div>
+            <div><strong>11</strong><span>experiences</span></div>
             <div><strong>21</strong><span>hand points</span></div>
             <div><strong>100%</strong><span>on-device</span></div>
           </div>
@@ -139,29 +140,37 @@
             <p id="captureHelp">Click capture, then step fully out during the three-second countdown. Keep the camera fixed.</p>
           </div>
           <div class="studio-tools" id="drawingTools" hidden>
-            <label>Style <select id="drawingStyle"><option value="ink">Plain ink</option><option value="rainbow">Rainbow line</option><option value="flowers">Flower trail</option></select></label>
-            <label>Brush <select id="brushSize"><option value="4">Fine</option><option value="8" selected>Medium</option><option value="16">Bold</option></select></label>
+            <label>Brush <select id="drawingStyle"><option value="ink">Smooth ink</option><option value="neon">Neon ribbon</option><option value="rainbow">Rainbow ribbon</option><option value="flowers">Daisy stamps</option><option value="stars">Star stamps</option><option value="hearts">Heart stamps</option><option value="sparkles">Sparkle trail</option><option value="lilies">Spider-lily stamps</option></select></label>
+            <label>Size <select id="brushSize"><option value="4">Fine</option><option value="8" selected>Medium</option><option value="16">Bold</option></select></label>
             <button id="undoDrawing" disabled>Undo</button><button id="redoDrawing" disabled>Redo</button>
             <button id="clearDrawing">Clear</button><button id="saveDrawing">Save drawing</button>
             <label><input type="checkbox" id="cleanBoard" /> Clean board</label>
           </div>
           <div class="studio-tools" id="frameTools" hidden>
-            <label>Local style <select id="frameStyle"><option value="neon">Neon edges</option><option value="thermal">Thermal</option><option value="sketch">Pencil edges</option><option value="pixel">Pixel art</option><option value="mono">Monochrome</option><option value="pop">Poster ink</option><option value="normal">Natural</option></select></label>
+            <label>Control <select id="frameControl"><option value="easy">Easy two-hand hold</option><option value="perspective">Four fingertip corners</option></select></label>
+            <label>Local style <select id="frameStyle"><option value="normal" selected>Natural</option><option value="neon">Neon edges</option><option value="thermal">Thermal</option><option value="sketch">Pencil edges</option><option value="pixel">Pixel art</option><option value="mono">Monochrome</option><option value="pop">Poster ink</option></select></label>
             <button id="freezeFrame" aria-pressed="false">Freeze photo</button>
-            <button id="recaptureFrame">Capture photo</button><label><input type="checkbox" id="liveFrame" /> Live texture</label>
-            <p id="frameHint">Open both thumbs and index fingers to form four corners. Pinch to capture, then open and tilt your hands.</p>
+            <button id="recaptureFrame">Capture camera photo</button><label><input type="checkbox" id="liveFrame" /> Live texture</label>
+            <label>Use your photo <input id="frameUpload" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+            <p id="frameHint">Easy mode: hold two open hands apart to move, resize and rotate the photo. Pinch once to capture.</p>
             <span class="tool-hint">Local styles only. The original FLUX-generated art needs a configured backend; it is not connected here.</span>
           </div>
           <div class="studio-tools" id="faceTools" hidden>
-            <button id="calibrateFace">Calibrate neutral face · 7s</button>
+            <button id="calibrateFace">Calibrate neutral face · 3s</button>
             <label>Reaction <select id="reactionSelect"></select></label><button id="testConfetti">Preview selected meme</button>
             <label>Replace selected meme <input id="reactionUpload" type="file" accept="image/png,image/jpeg,image/gif,image/webp" /></label>
             <p id="reactionInfo">Try a gasp, heart hands, cover your mouth, finger on lips, hand up, nose scrunch, or side-eye. Leave the frame for the spinning meme.</p>
           </div>
           <div class="studio-tools" id="focusTools" hidden>
             <label>Eyes closed for <select id="eyeDelay"><option value="1.8">1.8 seconds</option><option value="3">3 seconds</option><option value="5">5 seconds</option></select></label>
-            <label><input id="reminderSound" type="checkbox" /> Gentle sound</label>
+            <label><input id="reminderSound" type="checkbox" checked /> Repeating voice + alarm</label>
+            <button id="testReminder">Test voice alarm</button>
             <p id="focusReadout">Enable the camera and face it in good light.</p>
+          </div>
+          <div class="studio-tools" id="bloomTools" hidden>
+            <label>Scene <select id="bloomScene"><option value="wand">Flower wand</option><option value="red">Red blooms</option><option value="garden">Two-hand garden</option><option value="lilies">Spider lilies</option><option value="storm">Particle storm</option></select></label>
+            <button id="clearBloom">Clear scene</button>
+            <p id="bloomHelp">Point to plant flowers. Open your palm once to scatter the whole garden.</p>
           </div>
           <div class="studio-tools" id="faceRecovery" hidden><button id="retryFace">Retry face tracking</button><span id="studioMessage" role="status"></span></div>
           <div class="studio-tools"><button id="saveSnapshot" disabled>Save camera snapshot</button><span class="tool-hint">Saved only when you choose. Nothing is uploaded.</span></div>
@@ -184,7 +193,7 @@
         </div>
 
         <div class="control-panel" data-experience-panel="draw">
-          <p class="module-note">Raise only your index finger, keeping the other three fingers folded; your thumb can relax. Move to draw and lower the index finger to lift the pen. Choose Plain ink, Rainbow line, or Flower trail under Style. Brush size also changes flower size. Undo / Redo (⌘ or Ctrl + Z / Shift + Z) and saving work with every style.</p>
+          <p class="module-note">Raise only your index finger, keeping the other three fingers folded; your thumb can relax. Move to draw and lower it to lift the pen. Choose smooth ribbons or actual daisy, star, heart, sparkle and spider-lily stamps. Undo / Redo (⌘ or Ctrl + Z / Shift + Z) and saving work with every brush.</p>
           <div class="gesture-grid">
             <article class="gesture-card"><span class="key">01</span><span class="hand">☝️</span><div><h3>Point up + move</h3><p>Draw · lower finger to stop</p></div></article>
             <article class="gesture-card"><span class="key">02</span><span class="hand">✋</span><div><h3>Open palm</h3><p>Erase under fingertip</p></div></article>
@@ -245,11 +254,11 @@
         </div>
         <div class="control-panel" data-experience-panel="frame">
           <div class="gesture-grid gesture-grid-three">
-            <article class="gesture-card"><span class="key">01</span><span class="hand">↔</span><div><h3>Show two hands</h3><p>Thumbs + index tips set four corners</p></div></article>
-            <article class="gesture-card"><span class="key">02</span><span class="hand">◱</span><div><h3>Shape the frame</h3><p>Move fingers apart and diagonally to resize</p></div></article>
-            <article class="gesture-card"><span class="key">03</span><span class="hand">▣</span><div><h3>Freeze + style</h3><p>Use the controls below the camera, then save a snapshot</p></div></article>
+            <article class="gesture-card"><span class="key">01</span><span class="hand">↔</span><div><h3>Hold two palms apart</h3><p>Palm centers become stable left + right handles</p></div></article>
+            <article class="gesture-card"><span class="key">02</span><span class="hand">◱</span><div><h3>Move + rotate</h3><p>Hand distance controls size; hand angle controls tilt</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">🤏</span><div><h3>Capture + style</h3><p>Pinch once, upload a photo, or enable live texture</p></div></article>
           </div>
-          <p class="module-note">Adapted from <a href="https://github.com/tubakhxn/HandFrame-AI">Tuba Khan’s HandFrame-AI</a>. Both thumb tips and index tips anchor a perspective-warped photo. Pinch to recapture. Local styles are image-processing effects, not generated art. FLUX generation requires a separate backend and user-approved image upload.</p>
+          <p class="module-note">Adapted from <a href="https://github.com/tubakhxn/HandFrame-AI">Tuba Khan’s HandFrame-AI</a>. Easy mode uses both palm centers for a steadier floating photo; Four fingertip mode preserves the original perspective control. Pinch to recapture or load a local photo. Local styles are image-processing effects, not generated art. FLUX generation requires a separate backend and user-approved image upload.</p>
         </div>
         <div class="control-panel" data-experience-panel="face">
           <div class="gesture-grid gesture-grid-three">
@@ -263,9 +272,17 @@
           <div class="gesture-grid gesture-grid-three">
             <article class="gesture-card"><span class="key">01</span><span class="hand">◉</span><div><h3>Face the camera</h3><p>Both eyes must be visible</p></div></article>
             <article class="gesture-card"><span class="key">02</span><span class="hand">⏱</span><div><h3>Choose a delay</h3><p>Normal brief blinks do not trigger it</p></div></article>
-            <article class="gesture-card"><span class="key">03</span><span class="hand">♪</span><div><h3>Optional reminder</h3><p>Enable a gentle sound or use the visual cue</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">🔊</span><div><h3>Wake-up alarm</h3><p>Repeating tones + spoken warning until eyes reopen</p></div></article>
           </div>
           <p class="module-note"><strong>Experimental:</strong> Detects sustained eye closure only—not studying, distraction, tiredness, or a medical condition. Glasses, lighting and head angle can affect results. Never use this for driving or safety monitoring. No recordings or attention logs are kept.</p>
+        </div>
+        <div class="control-panel" data-experience-panel="bloom">
+          <div class="gesture-grid gesture-grid-three">
+            <article class="gesture-card"><span class="key">01</span><span class="hand">☝️</span><div><h3>Plant + paint</h3><p>Point to grow flower trails</p></div></article>
+            <article class="gesture-card"><span class="key">02</span><span class="hand">🖐️</span><div><h3>Scatter + force</h3><p>Open palm releases flowers or pushes particles</p></div></article>
+            <article class="gesture-card"><span class="key">03</span><span class="hand">🤏</span><div><h3>Grow + bloom</h3><p>Two-hand spread controls stem and petals</p></div></article>
+          </div>
+          <p class="module-note">Five scenes adapted for this browser from the linked reel ideas: procedural wand flowers, red bloom painting, independent stem/bloom controls, hand-anchored spider lilies and a particle force field. Inspired by <a href="https://github.com/Axshatt/Magical-Wands">Magical Wands</a>, <a href="https://github.com/cupidbity/spiderlily">cupidbity/spiderlily</a>, and open hand-particle interaction patterns. Everything renders locally.</p>
         </div>
       </section>
 
@@ -295,7 +312,7 @@
           draw: {
             eyebrow: "EXPERIENCE 02 / AIR CANVAS",
             stage: "AIR CANVAS / LIVE",
-            description: "Point your index finger up to draw. Choose ink, rainbow lines, or a flower trail; lower your finger to lift the pen.",
+            description: "Point your index finger up to write with smooth ribbons or paint real daisy, star, heart, sparkle and spider-lily stamps.",
           },
           hud: {
             eyebrow: "EXPERIENCE 03 / HAND HUD",
@@ -324,15 +341,19 @@
           },
           frame: {
             eyebrow: "EXPERIENCE 08 / HAND FRAME", stage: "HAND FRAME / LIVE",
-            description: "Frame a photo with both thumbs and index fingers. Pinch to capture, tilt your hands to warp its perspective, and explore local artistic styles.",
+            description: "Hold two palms apart to float, resize and rotate a captured or local photo; switch to four-corner mode for free perspective.",
           },
           face: {
-            eyebrow: "EXPERIENCE 09 / EXPRESSION FX", stage: "EXPRESSION FX / LIVE",
+            eyebrow: "EXPERIENCE 09 / REACTION MEMES", stage: "REACTION MEMES / LIVE",
             description: "Your reactions become memes. Gasp, make heart hands, cover your mouth, or raise a hand to trigger a head-following image.",
           },
           focus: {
             eyebrow: "EXPERIENCE 10 / STUDY REMINDER", stage: "STUDY REMINDER / EXPERIMENT",
-            description: "An optional gentle reminder when both eyes stay closed. A local camera experiment, not an attention or health assessment.",
+            description: "A repeating voice-and-tone alarm when both eyes stay closed. A local camera experiment, not an attention or health assessment.",
+          },
+          bloom: {
+            eyebrow: "EXPERIENCE 11 / BLOOM STUDIO", stage: "BLOOM STUDIO / LIVE",
+            description: "Plant and scatter procedural flowers, grow a two-hand garden, sculpt spider lilies, or push a luminous particle storm.",
           },
         });
 
@@ -348,7 +369,7 @@
           document.querySelector("#experienceDescription").textContent = meta.description;
           document.querySelector("#stageExperience").textContent = meta.stage;
           document.querySelector("#captureRow").classList.toggle("hidden", nextExperience !== "effects");
-          for (const [id, modes] of Object.entries({ drawingTools: ["draw"], frameTools: ["frame"], faceTools: ["face"], focusTools: ["focus"], faceRecovery: ["face", "focus"] })) {
+          for (const [id, modes] of Object.entries({ drawingTools: ["draw"], frameTools: ["frame"], faceTools: ["face"], focusTools: ["focus"], bloomTools: ["bloom"], faceRecovery: ["face", "focus"] })) {
             const tools = document.querySelector(`#${id}`);
             if (tools) tools.hidden = !modes.includes(nextExperience);
           }

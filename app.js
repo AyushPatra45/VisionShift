@@ -28,6 +28,7 @@ import {
 } from "./sign-reader-utils.js";
 import { advancePong, createPongBall } from "./pong-utils.js";
 import { createCameraStudio } from "./camera-studio.js";
+import { createBloomStudio } from "./bloom-studio.js";
 import { HeldAction, EditHistory, PointingGate } from "./studio-utils.js";
 
 const MODEL_URL = "./models/gesture_recognizer.task";
@@ -41,6 +42,7 @@ const READER_STORAGE_KEY = "visionshift.personal-sign-reader.v1";
 const READER_CAPTURE_SAMPLES = 24;
 const READER_HOLD_MS = 760;
 const READER_UNLOCK_MS = 420;
+const STAMP_STYLES = new Set(["flowers", "stars", "hearts", "sparkles", "lilies"]);
 
 const EXPERIENCE_META = Object.freeze({
   effects: {
@@ -51,7 +53,7 @@ const EXPERIENCE_META = Object.freeze({
   draw: {
     eyebrow: "EXPERIENCE 02 / AIR CANVAS",
     stage: "AIR CANVAS / LIVE",
-    description: "Point your index finger up to draw. Choose ink, rainbow lines, or a flower trail; lower your finger to lift the pen.",
+    description: "Point your index finger up to write with smooth ribbons or paint real daisy, star, heart, sparkle and spider-lily stamps.",
   },
   hud: {
     eyebrow: "EXPERIENCE 03 / HAND HUD",
@@ -81,17 +83,22 @@ const EXPERIENCE_META = Object.freeze({
   frame: {
     eyebrow: "EXPERIENCE 08 / HAND FRAME",
     stage: "HAND FRAME / LIVE",
-    description: "Frame a photo with both thumbs and index fingers. Pinch to capture, tilt your hands to warp its perspective, and explore local artistic styles.",
+    description: "Hold two palms apart to float, resize and rotate a captured or local photo; switch to four-corner mode for free perspective.",
   },
   face: {
-    eyebrow: "EXPERIENCE 09 / EXPRESSION FX",
-    stage: "EXPRESSION FX / LIVE",
+    eyebrow: "EXPERIENCE 09 / REACTION MEMES",
+    stage: "REACTION MEMES / LIVE",
     description: "Your reactions become memes. Gasp, make heart hands, cover your mouth, or raise a hand to trigger a head-following image.",
   },
   focus: {
     eyebrow: "EXPERIENCE 10 / STUDY REMINDER",
     stage: "STUDY REMINDER / EXPERIMENT",
-    description: "An optional gentle reminder when both eyes stay closed. A local camera experiment, not an attention or health assessment.",
+    description: "A repeating voice-and-tone alarm when both eyes stay closed. A local camera experiment, not an attention or health assessment.",
+  },
+  bloom: {
+    eyebrow: "EXPERIENCE 11 / BLOOM STUDIO",
+    stage: "BLOOM STUDIO / LIVE",
+    description: "Plant and scatter procedural flowers, grow a two-hand garden, sculpt spider lilies, or push a luminous particle storm.",
   },
 });
 
@@ -175,11 +182,13 @@ let sceneBrightness = 1;
 let lastBrightnessAt = 0;
 let previousFrameTime = performance.now();
 let fpsSmoothed = 0;
+let bloomLabel = "CHOOSE A BLOOM SCENE";
 const stabilizer = new GestureStabilizer();
 
 const drawState = {
   style: "ink",
   flowerPoint: null,
+  stampCount: 0,
   hue: 0,
   strokeColor: "#c8ff42",
   width: 8,
@@ -200,6 +209,7 @@ const drawState = {
   clearLatched: false,
 };
 const studio = createCameraStudio({ video, canvas, ctx });
+const bloomStudio = createBloomStudio({ canvas, ctx });
 
 const game = {
   target: null,
@@ -366,6 +376,7 @@ function resizeCanvases() {
   cloakFrameReady = false;
   game.target = createTarget(width, height);
   resetPong();
+  bloomStudio.reset();
 }
 
 async function captureBackground() {
@@ -433,6 +444,7 @@ function setExperience(nextExperience) {
   drawState.editing = false;
   drawState.command.reset();
   studio.enter(nextExperience);
+  if (nextExperience === "bloom") bloomStudio.enter();
   const previousExperience = activeExperience;
   activeExperience = nextExperience;
   const meta = EXPERIENCE_META[nextExperience];
@@ -713,10 +725,12 @@ function saveCanvas(source, filename, fill = null) {
 }
 
 function finishDrawingStroke() {
-  if (drawState.style !== "flowers" && drawState.previousPoint && drawState.previousMidpoint) {
+  if (!STAMP_STYLES.has(drawState.style) && drawState.previousPoint && drawState.previousMidpoint) {
     drawingCtx.save();
     drawingCtx.globalCompositeOperation = "source-over";
     drawingCtx.strokeStyle = drawState.strokeColor;
+    drawingCtx.shadowColor = drawState.style === "neon" || drawState.style === "rainbow" ? drawState.strokeColor : "transparent";
+    drawingCtx.shadowBlur = drawState.style === "neon" ? drawState.width * 2.2 : drawState.style === "rainbow" ? drawState.width : 0;
     drawingCtx.lineWidth = drawState.width;
     drawingCtx.lineCap = "round";
     drawingCtx.beginPath();
@@ -730,22 +744,72 @@ function finishDrawingStroke() {
   drawState.flowerPoint = null;
 }
 
+function drawCanvasStamp(x, y, angle = 0) {
+  const size = drawState.width * .9 + 8;
+  const style = drawState.style;
+  const variation = drawState.stampCount++;
+  drawingCtx.save();
+  drawingCtx.translate(x, y);
+  drawingCtx.rotate(angle + Math.sin(variation * 2.37) * .25);
+  drawingCtx.shadowColor = drawState.color;
+  drawingCtx.shadowBlur = style === "sparkles" ? size : size * .45;
+  drawingCtx.fillStyle = drawState.color;
+  drawingCtx.strokeStyle = drawState.color;
+  drawingCtx.lineCap = "round";
+  drawingCtx.lineJoin = "round";
+
+  if (style === "stars") {
+    drawingCtx.beginPath();
+    for (let i = 0; i < 10; i += 1) {
+      const radius = i % 2 ? size * .42 : size;
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      const px = Math.cos(a) * radius, py = Math.sin(a) * radius;
+      if (i) drawingCtx.lineTo(px, py); else drawingCtx.moveTo(px, py);
+    }
+    drawingCtx.closePath(); drawingCtx.fill();
+  } else if (style === "hearts") {
+    drawingCtx.beginPath(); drawingCtx.moveTo(0, size * .82);
+    drawingCtx.bezierCurveTo(-size * 1.2, size * .05, -size * .72, -size, 0, -size * .35);
+    drawingCtx.bezierCurveTo(size * .72, -size, size * 1.2, size * .05, 0, size * .82);
+    drawingCtx.fill();
+  } else if (style === "sparkles") {
+    drawingCtx.lineWidth = Math.max(2, drawState.width * .32);
+    for (let i = 0; i < 4; i += 1) {
+      drawingCtx.rotate(Math.PI / 4); drawingCtx.beginPath();
+      drawingCtx.moveTo(-size, 0); drawingCtx.lineTo(size, 0); drawingCtx.stroke();
+    }
+    drawingCtx.fillStyle = "#fff"; drawingCtx.beginPath(); drawingCtx.arc(0, 0, Math.max(2, size * .17), 0, Math.PI * 2); drawingCtx.fill();
+  } else if (style === "lilies") {
+    drawingCtx.lineWidth = Math.max(1.5, drawState.width * .28);
+    for (let i = 0; i < 8; i += 1) {
+      drawingCtx.save(); drawingCtx.rotate(i * Math.PI / 4);
+      drawingCtx.beginPath(); drawingCtx.moveTo(0, 0);
+      drawingCtx.bezierCurveTo(size * .15, -size * .65, size * .72, -size * .8, size, 0); drawingCtx.stroke();
+      drawingCtx.beginPath(); drawingCtx.moveTo(0, 0); drawingCtx.quadraticCurveTo(size * .55, size * .2, size * 1.1, -.15 * size); drawingCtx.stroke();
+      drawingCtx.fillStyle = "#ffe9a6"; drawingCtx.beginPath(); drawingCtx.arc(size * 1.1, -.15 * size, Math.max(1.2, size * .06), 0, Math.PI * 2); drawingCtx.fill();
+      drawingCtx.restore();
+    }
+  } else {
+    const petals = 7;
+    for (let i = 0; i < petals; i += 1) {
+      drawingCtx.save(); drawingCtx.rotate(i * Math.PI * 2 / petals);
+      drawingCtx.beginPath(); drawingCtx.ellipse(size * .56, 0, size * .55, size * .24, 0, 0, Math.PI * 2); drawingCtx.fill();
+      drawingCtx.restore();
+    }
+    drawingCtx.fillStyle = "#ffd75c"; drawingCtx.beginPath(); drawingCtx.arc(0, 0, size * .28, 0, Math.PI * 2); drawingCtx.fill();
+  }
+  drawingCtx.restore();
+}
+
 function drawSmoothStroke(point) {
   beginDrawingEdit();
-  if (drawState.style === "flowers") {
-    const spacing = drawState.width * 2 + 14;
+  if (STAMP_STYLES.has(drawState.style)) {
+    const spacing = drawState.width * 2.4 + (drawState.style === "lilies" ? 25 : 14);
     const last = drawState.flowerPoint;
     const distance = last ? Math.hypot(point.x-last.x, point.y-last.y) : 0;
     const stamp = (x,y) => {
-      const radius = drawState.width * .6 + 5;
-      drawingCtx.save(); drawingCtx.translate(x,y);
-      drawingCtx.fillStyle = drawState.color;
-      for (let i=0;i<6;i++) {
-        drawingCtx.rotate(Math.PI/3); drawingCtx.beginPath();
-        drawingCtx.ellipse(radius,0,radius,radius*.55,0,0,Math.PI*2); drawingCtx.fill();
-      }
-      drawingCtx.fillStyle = "#ffd75c"; drawingCtx.beginPath();
-      drawingCtx.arc(0,0,radius*.55,0,Math.PI*2); drawingCtx.fill(); drawingCtx.restore();
+      const angle = last ? Math.atan2(point.y-last.y,point.x-last.x) : 0;
+      drawCanvasStamp(x,y,angle);
       drawState.flowerPoint = {x,y};
     };
     if (!last) stamp(point.x,point.y);
@@ -760,6 +824,8 @@ function drawSmoothStroke(point) {
   drawingCtx.globalCompositeOperation = "source-over";
   drawingCtx.strokeStyle = drawState.strokeColor;
   drawingCtx.fillStyle = drawState.strokeColor;
+  drawingCtx.shadowColor = drawState.style === "neon" || drawState.style === "rainbow" ? drawState.strokeColor : "transparent";
+  drawingCtx.shadowBlur = drawState.style === "neon" ? drawState.width * 2.2 : drawState.style === "rainbow" ? drawState.width : 0;
   drawingCtx.lineWidth = drawState.width;
   drawingCtx.lineCap = "round";
   drawingCtx.lineJoin = "round";
@@ -1440,7 +1506,8 @@ function paintModeChip() {
     if (readerState.training) label = "LEARNING PERSONAL SIGN";
     else if (readerState.detected) label = `READING ${readerState.detected.toUpperCase()}`;
     else label = readerState.library.length ? "SHOW A LEARNED SIGN" : "TEACH YOUR FIRST SIGN";
-  } else label = studio.label || "ENABLE CAMERA";
+  } else if (activeExperience === "bloom") label = bloomLabel;
+  else label = studio.label || "ENABLE CAMERA";
   setTextIfChanged(modeChip, label);
   modeChip.classList.add("visible");
   document.querySelectorAll(".gesture-card[data-mode]").forEach((card) => {
@@ -1478,6 +1545,10 @@ function render(now) {
   else if (activeExperience === "sign") renderSignLab(now);
   else if (activeExperience === "pong") renderPong(now);
   else if (activeExperience === "reader") renderSignReader(now);
+  else if (activeExperience === "bloom") {
+    drawNormal();
+    bloomLabel = bloomStudio.render(now, latestHands);
+  }
   else studio.render(now, latestHands);
 
   paintModeChip();

@@ -20,7 +20,7 @@ try {
   // Test-only instrumentation is intercepted in this browser, never shipped.
   await page.route("**/app.js", async route => {
     const source = await readFile(new URL("../app.js",import.meta.url),"utf8");
-    await route.fulfill({contentType:"text/javascript",body:source + `\nwindow.__visionTest = { updateRecognition, renderAirCanvas, finishDrawingStroke, restoreDrawing, drawing, drawingCtx, drawState, studio, buildCloakFrame, fullSizeMask, fullSizeMaskCtx };`});
+    await route.fulfill({contentType:"text/javascript",body:source + `\nwindow.__visionTest = { updateRecognition, renderAirCanvas, finishDrawingStroke, restoreDrawing, drawing, drawingCtx, drawState, studio, bloomStudio, buildCloakFrame, fullSizeMask, fullSizeMaskCtx };`});
   });
   await page.route("**/camera-studio.js", async route => {
     const source = await readFile(new URL("../camera-studio.js",import.meta.url),"utf8");
@@ -31,14 +31,15 @@ try {
   await page.locator("#startButton").click();
   await page.waitForFunction(()=>document.querySelector("#stage").classList.contains("camera-on"),{},{timeout:20000});
   console.log("PASS: actual local hand model + synthetic camera startup");
-  for (const mode of ["effects","draw","hud","game","sign","pong","reader","frame","face","focus"]) {
+  for (const mode of ["effects","draw","hud","game","sign","pong","reader","frame","face","focus","bloom"]) {
     await page.locator(`[data-experience="${mode}"].experience-button`).click();
     assert.equal(await page.locator("#stage").getAttribute("data-experience"),mode);
     assert.equal(await page.locator(`[data-experience-panel="${mode}"]`).isVisible(),true);
   }
   await page.waitForFunction(()=>/NO FACE|EYES OPEN|EYES CLOSED|TAKE A MOMENT/.test(document.querySelector("#focusReadout").textContent),{},{timeout:60000});
   assert.equal(await page.locator("#studioMessage").textContent(),"");
-  console.log("PASS: all 10 routes and actual face-model inference (no face)");
+  console.log("PASS: all 11 routes and actual face-model inference (no face)");
+  await page.locator('[data-experience="focus"].experience-button').click();
   const faceChecks = await page.evaluate(()=>{
     const t=window.__visionTest, s=window.__studioTest;
     const points=Array.from({length:478},()=>({x:.5,y:.4,z:0}));
@@ -54,7 +55,19 @@ try {
     render({eyeBlinkLeft:.9,eyeBlinkRight:.9},23000);const reminder=render({eyeBlinkLeft:.9,eyeBlinkRight:.9},25000);
     return {mouth,disgust,reminder};
   });
-  assert.deepEqual(faceChecks,{mouth:"GASP",disgust:"DISGUST",reminder:"TAKE A MOMENT"});
+  assert.deepEqual(faceChecks,{mouth:"GASP",disgust:"DISGUST",reminder:"WAKE UP"});
+  await page.evaluate(()=>{
+    const points=Array.from({length:478},()=>({x:.5,y:.4,z:0}));
+    points[234]={x:.3,y:.4};points[454]={x:.7,y:.4};
+    window.__studioTest.setFace({faceLandmarks:[points],faceBlendshapes:[{categories:[
+      {categoryName:"eyeBlinkLeft",score:.9},{categoryName:"eyeBlinkRight",score:.9},
+    ]}]});
+    window.__visionTest.studio.enter("focus");
+  });
+  await page.waitForFunction(()=>window.__visionTest.studio.label === "WAKE UP",{},{timeout:5000});
+  assert.match(await page.locator("#focusReadout").textContent(),/ALARM ACTIVE/);
+  await mkdir("/tmp/visionshift-qa",{recursive:true});
+  await page.screenshot({path:"/tmp/visionshift-qa/study-alarm.png",fullPage:true});
   console.log("PASS: expression effects and sustained-closure reminder with synthetic landmarks");
   const maskCheck = await page.evaluate(()=>{
     const t=window.__visionTest;
@@ -82,6 +95,7 @@ try {
   await page.locator("#testConfetti").click();
   await page.locator(".reaction-overlay").waitFor({state:"visible"});
   assert.equal(await page.locator(".reaction-overlay").getAttribute("alt"),"Heart hands");
+  await page.waitForTimeout(500);
   await page.screenshot({path:"/tmp/visionshift-qa/reel-meme.png",fullPage:true});
   await page.locator('[data-experience="draw"].experience-button').click();
   const ink = await page.evaluate(()=>{
@@ -104,7 +118,7 @@ try {
     return {drawn,undone,redone,gaps};
   });
   assert.ok(ink.drawn>100);assert.equal(ink.undone,0);assert.equal(ink.redone,ink.drawn);assert.equal(ink.gaps,0);
-  for (const style of ["flowers","rainbow"]) {
+  for (const style of ["neon","rainbow","flowers","stars","hearts","sparkles","lilies"]) {
     await page.locator("#clearDrawing").click();
     await page.locator("#drawingStyle").selectOption(style);
     const result = await page.evaluate(()=>{
@@ -121,7 +135,7 @@ try {
     });
     assert.deepEqual(result,{empty:true,restored:true,painted:true});
   }
-  console.log("PASS: flower and rainbow styles paint and undo/redo exactly");
+  console.log("PASS: all ribbon and shape brushes paint and undo/redo exactly");
   console.log("PASS: noisy gesture labels do not break handwriting; undo/redo restore exact ink",ink);
   const download=page.waitForEvent("download"); await page.locator("#saveDrawing").click();
   assert.equal((await download).suggestedFilename(),"visionshift-drawing.png");
@@ -129,7 +143,24 @@ try {
   await mkdir("/tmp/visionshift-qa",{recursive:true});
   await page.screenshot({path:"/tmp/visionshift-qa/desktop.png",fullPage:true});
   await page.setViewportSize({width:390,height:844});
-  for (const mode of ["draw","frame","face","focus","sign","reader"]) {
+  await page.locator('[data-experience="bloom"].experience-button').click();
+  const bloomChecks={};
+  for(const scene of ["wand","red","garden","lilies","storm"]){
+    await page.locator("#bloomScene").selectOption(scene);
+    bloomChecks[scene]=await page.evaluate((scene)=>{
+      const point=Array.from({length:21},()=>({x:.5,y:.7,z:0}));
+      point[0]={x:.5,y:.95};point[5]={x:.4,y:.72};point[17]={x:.6,y:.72};
+      point[6]={x:.45,y:.67};point[8]={x:.45,y:.35};point[4]={x:.22,y:.52};
+      point[10]={x:.5,y:.61};point[12]={x:.5,y:.72};point[14]={x:.55,y:.61};point[16]={x:.55,y:.72};point[18]={x:.6,y:.62};point[20]={x:.6,y:.72};
+      const other=point.map(p=>({...p,x:Math.min(.95,p.x+.28)}));
+      return window.__visionTest.bloomStudio.render(42000,scene==="wand"||scene==="red"?[point]:[point,other]);
+    },scene);
+  }
+  assert.deepEqual(Object.keys(bloomChecks),["wand","red","garden","lilies","storm"]);
+  assert.ok(Object.values(bloomChecks).every(Boolean));
+  await page.screenshot({path:"/tmp/visionshift-qa/bloom-studio.png",fullPage:true});
+  console.log("PASS: all five Bloom Studio scenes render from synthetic hands",bloomChecks);
+  for (const mode of ["draw","frame","face","focus","sign","reader","bloom"]) {
     await page.locator(`[data-experience="${mode}"].experience-button`).click();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${mode} mobile overflow`);
   }

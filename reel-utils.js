@@ -43,6 +43,29 @@ export function handQuad(hands,w,h) {
   return area>1800?q:null;
 }
 
+// A steady two-hand transform for people who do not want to hold four exact
+// fingertip corners. Palm centers control position, distance controls size and
+// the line between the palms controls rotation.
+export function easyFrameQuad(hands, w, h, aspect = 1.42) {
+  const a = hands?.[0]?.[9], b = hands?.[1]?.[9];
+  if (!a || !b || ![a.x, a.y, b.x, b.y, w, h].every(Number.isFinite)) return null;
+  const ax = a.x * w, ay = a.y * h, bx = b.x * w, by = b.y * h;
+  const distance = Math.hypot(bx - ax, by - ay);
+  if (distance < Math.min(w, h) * .12) return null;
+  const width = Math.max(150, Math.min(w * .76, distance * 1.16));
+  const height = Math.min(h * .62, width / aspect);
+  const angle = Math.atan2(by - ay, bx - ax);
+  const ux = Math.cos(angle), uy = Math.sin(angle), vx = -uy, vy = ux;
+  const cx = (ax + bx) / 2, cy = (ay + by) / 2;
+  const corner = (sx, sy) => ({ x: cx + ux * width * sx + vx * height * sy, y: cy + uy * width * sx + vy * height * sy });
+  const q = [corner(-.5, -.5), corner(.5, -.5), corner(.5, .5), corner(-.5, .5)];
+  const minX = Math.min(...q.map(p => p.x)), maxX = Math.max(...q.map(p => p.x));
+  const minY = Math.min(...q.map(p => p.y)), maxY = Math.max(...q.map(p => p.y));
+  const dx = minX < 16 ? 16 - minX : maxX > w - 16 ? w - 16 - maxX : 0;
+  const dy = minY < 16 ? 16 - minY : maxY > h - 16 ? h - 16 - maxY : 0;
+  return q.map(p => ({ x: p.x + dx, y: p.y + dy }));
+}
+
 // Homography for a unit square projected onto four corners.
 export function projectQuad(q,u,v) {
   const [a,b,c,d]=q;

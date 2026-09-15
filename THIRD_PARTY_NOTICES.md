@@ -8,6 +8,18 @@ Both repositories publish under the MIT License below. Third-party meme
 characters/images may retain their respective owners' rights; this notice
 does not grant additional rights to those underlying works.
 
+Bloom Studio is an original Canvas implementation inspired by the interaction
+descriptions and public demonstrations in:
+
+- https://github.com/Axshatt/Magical-Wands (MIT License)
+- https://github.com/cupidbity/spiderlily (creator requests credit for inspired work)
+- https://github.com/chaitanya4545-ai/hand-controlled-particle-system (MIT License)
+
+No code or media from these three projects is bundled. Their ideas informed
+the point-to-plant/open-palm scatter, two-hand grow/bloom, and palm-force
+particle controls. Their authors and projects remain credited here and in the
+on-page control guide.
+
 MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
