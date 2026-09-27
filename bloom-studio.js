@@ -1,4 +1,4 @@
-import { isPinching, normalizedPinchDistance, toCanvasPoint } from "./interaction-utils.js";
+import { normalizedPinchDistance, toCanvasPoint } from "./interaction-utils.js";
 import { getFingerStates } from "./sign-utils.js";
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
@@ -33,13 +33,17 @@ function drawStar(ctx, radius, points = 5) {
 
 function drawDaisy(ctx, radius, color, seed) {
   const petals = 7 + Math.floor(positiveSeed(seed) * 4);
-  ctx.fillStyle = color;
+  const petal = ctx.createRadialGradient(0,0,radius*.1,0,0,radius*1.2);
+  petal.addColorStop(0,"#fff5da");petal.addColorStop(.45,color);petal.addColorStop(1,"#fff1f4");
+  ctx.fillStyle = petal;
   for (let i = 0; i < petals; i += 1) {
     ctx.save(); ctx.rotate(i * Math.PI * 2 / petals);
     ctx.beginPath(); ctx.ellipse(radius * .63, 0, radius * .58, radius * .25, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
-  ctx.fillStyle = "#ffd85a"; ctx.beginPath(); ctx.arc(0, 0, radius * .3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#d89218"; ctx.beginPath(); ctx.arc(0, 0, radius * .27, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle="#ffe6a0";
+  for(let i=0;i<22;i++){const a=i*2.39996,r=Math.sqrt(i/22)*radius*.23;ctx.beginPath();ctx.arc(Math.cos(a)*r,Math.sin(a)*r,Math.max(.6,radius*.035),0,Math.PI*2);ctx.fill();}
 }
 
 function drawTulip(ctx, radius, color) {
@@ -66,20 +70,29 @@ function drawRose(ctx, radius, color) {
 
 function drawSpiderLily(ctx, radius, bloom = 1) {
   const open = .15 + bloom * .85;
-  ctx.lineCap = "round";
-  for (let i = 0; i < 9; i += 1) {
-    const angle = i * Math.PI * 2 / 9;
-    ctx.save(); ctx.rotate(angle);
-    ctx.strokeStyle = i % 2 ? "#ff315d" : "#ff173e";
-    ctx.lineWidth = Math.max(1.2, radius * .075);
-    ctx.beginPath(); ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(radius * .18, -radius * .55 * open, radius * .78 * open, -radius * .75, radius * open, 0);
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(255,95,119,.9)"; ctx.lineWidth = Math.max(1, radius * .035);
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(radius * .55, radius * .2, radius * 1.18 * open, -radius * .16); ctx.stroke();
-    ctx.fillStyle = "#ffe5a5"; ctx.beginPath(); ctx.arc(radius * 1.18 * open, -radius * .16, Math.max(1.2, radius * .055), 0, Math.PI * 2); ctx.fill();
+  ctx.save();ctx.lineCap="round";
+  // Layered recurved petals and long stamens give the bloom a botanical silhouette.
+  for(let layer=0;layer<2;layer++)for(let i=0;i<6;i++){
+    ctx.save();ctx.rotate(i*Math.PI/3+layer*.37);ctx.scale(1,layer?.7:1);
+    const r=radius*open*(layer?.78:1);
+    const petal=ctx.createLinearGradient(0,0,r,-r*.65);
+    petal.addColorStop(0,"#661025");petal.addColorStop(.42,"#ed214a");petal.addColorStop(.8,"#ff6176");petal.addColorStop(1,"#ffb0ac");
+    ctx.fillStyle=petal;ctx.beginPath();ctx.moveTo(0,0);
+    ctx.bezierCurveTo(r*.3,-r*.48,r*.72,-r*.82,r*.94,-r*.36);
+    ctx.bezierCurveTo(r*1.15,r*.1,r*.59,r*.28,r*.72,-r*.04);
+    ctx.bezierCurveTo(r*.95,r*.11,r*.84,-r*.44,r*.61,-r*.4);
+    ctx.bezierCurveTo(r*.36,-r*.33,r*.17,-r*.04,0,0);ctx.fill();
+    ctx.strokeStyle="rgba(255,173,174,.8)";ctx.lineWidth=.75;ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(r*.25,-r*.3,r*.66,-r*.67,r*.87,-r*.27);ctx.stroke();
     ctx.restore();
   }
+  for(let i=0;i<12;i++){
+    const a=i*Math.PI/6+.1,r=radius*(1.15+(i%3)*.14)*open;
+    const x=Math.cos(a)*r,y=Math.sin(a)*r*.8;
+    ctx.strokeStyle=i%2?"#ff7086":"#ffbdbe";ctx.lineWidth=Math.max(.65,radius*.015);
+    ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(x*.35-y*.22,y*.4+x*.22,x,y);ctx.stroke();
+    ctx.fillStyle="#ffe2ac";ctx.beginPath();ctx.ellipse(x,y,Math.max(1,radius*.035),Math.max(.7,radius*.018),a,0,Math.PI*2);ctx.fill();
+  }
+  ctx.restore();
 }
 
 function drawFlower(ctx, flower, now, forcedBloom = 1) {
@@ -87,7 +100,7 @@ function drawFlower(ctx, flower, now, forcedBloom = 1) {
   const pulse = 1 + Math.sin(now * .0027 + flower.seed) * .035;
   const radius = flower.radius * born * pulse;
   ctx.save(); ctx.translate(flower.x, flower.y); ctx.rotate(flower.rotation || 0);
-  ctx.shadowColor = flower.color; ctx.shadowBlur = radius * .72;
+  ctx.shadowColor = flower.color; ctx.shadowBlur = radius * .18;
   if (flower.kind === "tulip") drawTulip(ctx, radius, flower.color);
   else if (flower.kind === "rose") drawRose(ctx, radius, flower.color);
   else if (flower.kind === "lily") drawSpiderLily(ctx, radius, forcedBloom);
@@ -96,11 +109,11 @@ function drawFlower(ctx, flower, now, forcedBloom = 1) {
   ctx.restore();
 }
 
-function drawStem(ctx, x, base, top, growth, branch = 0) {
+function drawStem(ctx, x, base, top, growth, branch = 0, endX = x) {
   const tip = base + (top - base) * growth;
   ctx.save(); ctx.strokeStyle = "#3dc76b"; ctx.lineWidth = 3; ctx.lineCap = "round";
   ctx.shadowColor = "#1e8f52"; ctx.shadowBlur = 10;
-  ctx.beginPath(); ctx.moveTo(x, base); ctx.bezierCurveTo(x - 20 * branch, base - 55 * growth, x + 18 * branch, tip + 35, x, tip); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, base); ctx.bezierCurveTo(x - 20 * branch, base - 55 * growth, endX + 18 * branch, tip + 35, endX, tip); ctx.stroke();
   if (growth > .35) {
     ctx.fillStyle = "#3dc76b";
     ctx.save(); ctx.translate(x, base + (tip - base) * .56); ctx.rotate(-.65);
@@ -112,12 +125,13 @@ function drawStem(ctx, x, base, top, growth, branch = 0) {
 
 export function createBloomStudio({ canvas, ctx }) {
   let scene = "wand", flowers = [], particles = [], previousTips = new Map();
-  let openLatched = false, lastPlantAt = 0, frameAt = 0, flowerId = 0;
+  let openLatched = false, frameAt = 0, flowerId = 0;
+  let gardenGrowth=.15,gardenBloom=.12;
   const sceneSelect = document.querySelector("#bloomScene");
   const help = document.querySelector("#bloomHelp");
 
-  function reset() { flowers = []; particles = []; previousTips.clear(); openLatched = false; }
-  function enter() { previousTips.clear(); openLatched = false; }
+  function reset() { flowers = []; particles = []; previousTips.clear(); openLatched = false; frameAt=0;gardenGrowth=.15;gardenBloom=.12; }
+  function enter() { previousTips.clear(); openLatched = false; frameAt=0; }
   sceneSelect?.addEventListener("change", event => { scene = event.target.value; reset(); syncHelp(); });
   document.querySelector("#clearBloom")?.addEventListener("click", reset);
 
@@ -133,7 +147,7 @@ export function createBloomStudio({ canvas, ctx }) {
   }
 
   function spawn(x, y, now, red = false) {
-    const kinds = red ? ["lily", "rose", "tulip"] : ["daisy", "tulip", "rose", "star"];
+    const kinds = red ? ["lily", "rose", "lily"] : ["daisy", "rose", "daisy", "lily"];
     const colors = red ? ["#ff173e", "#ff315d", "#ff6b7d"] : ["#ff4f9a", "#ffd85a", "#6fe7ff", "#b991ff", "#ff775f", "#fff4d6"];
     const id = flowerId++;
     flowers.push({ id, x, y, born: now, seed: id * 1.73, radius: 11 + positiveSeed(id + 3) * 13,
@@ -148,14 +162,14 @@ export function createBloomStudio({ canvas, ctx }) {
       const point = toCanvasPoint(hand[8], canvas.width, canvas.height);
       const previous = previousTips.get(index);
       const distance = previous ? Math.hypot(point.x - previous.x, point.y - previous.y) : Infinity;
-      if ((distance > (red ? 17 : 24) || now - lastPlantAt > 150) && now - lastPlantAt > 45) {
-        spawn(point.x, point.y, now, red); lastPlantAt = now; planted = true;
-        if (red && previous) {
-          ctx.save(); ctx.strokeStyle = "rgba(67,201,104,.75)"; ctx.lineWidth = 2; ctx.beginPath();
-          ctx.moveTo(previous.x, previous.y); ctx.quadraticCurveTo((previous.x + point.x) / 2, Math.max(previous.y, point.y) + 18, point.x, point.y); ctx.stroke(); ctx.restore();
-        }
+      const spacing=red?32:28;
+      if(!previous||distance>canvas.width*.35){spawn(point.x,point.y,now,red);previousTips.set(index,point);planted=true;}
+      else if(distance>=spacing){
+        const count=Math.min(8,Math.floor(distance/spacing));
+        for(let step=1;step<=count;step++){const amount=step*spacing/distance;spawn(previous.x+(point.x-previous.x)*amount,previous.y+(point.y-previous.y)*amount,now,red);}
+        const amount=count*spacing/distance;
+        previousTips.set(index,{x:previous.x+(point.x-previous.x)*amount,y:previous.y+(point.y-previous.y)*amount});planted=true;
       }
-      previousTips.set(index, point);
     });
     return planted;
   }
@@ -174,10 +188,10 @@ export function createBloomStudio({ canvas, ctx }) {
     openLatched = open;
   }
 
-  function renderFlowers(now, hands, red = false) {
+  function renderFlowers(now, hands, red = false, dt = 1) {
     plantTrail(hands, now, red); scatterFlowers(hands);
     for (const flower of flowers) {
-      if (flower.scattered) { flower.vy += .08; flower.vx *= .995; flower.x += flower.vx; flower.y += flower.vy; flower.rotation += flower.vx * .025; }
+      if (flower.scattered) { flower.vy += .08*dt; flower.vx *= Math.pow(.995,dt); flower.x += flower.vx*dt; flower.y += flower.vy*dt; flower.rotation += flower.vx*.025*dt; }
       if (red && !flower.scattered) {
         ctx.strokeStyle = "rgba(51,167,84,.7)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(flower.x, canvas.height); ctx.quadraticCurveTo(flower.x + Math.sin(flower.seed) * 25, (flower.y + canvas.height) / 2, flower.x, flower.y); ctx.stroke();
       }
@@ -187,17 +201,21 @@ export function createBloomStudio({ canvas, ctx }) {
     return hands.some(isOpenHand) ? "OPEN PALM · SCATTER" : hands.some(isPointingHand) ? "PLANTING BLOOMS" : "POINT TO PLANT";
   }
 
-  function renderGarden(now, hands) {
-    const ordered = [...hands].sort((a, b) => a[9].x - b[9].x);
-    const growth = ordered[0] ? handBloomAmount(ordered[0]) : .15;
-    const bloom = ordered[1] ? handBloomAmount(ordered[1]) : ordered[0] ? growth : .12;
+  function renderGarden(now, hands, dt) {
+    // The canvas is mirrored: larger camera x is the viewer's left side.
+    const left=hands.find(hand=>hand[9].x>=.5),right=hands.find(hand=>hand[9].x<.5);
+    const blend=1-Math.exp(-.18*dt);
+    if(left)gardenGrowth+=(handBloomAmount(left)-gardenGrowth)*blend;
+    if(right)gardenBloom+=(handBloomAmount(right)-gardenBloom)*blend;
+    const growth=gardenGrowth,bloom=gardenBloom;
     const base = canvas.height * .92, x = canvas.width * .5;
     const top = drawStem(ctx, x, base, canvas.height * .23, growth, .5);
     if (growth > .42) {
-      const left = drawStem(ctx, x - 2, base * .72, canvas.height * .42, clamp((growth - .32) / .68), -1);
-      const right = drawStem(ctx, x + 2, base * .72, canvas.height * .46, clamp((growth - .38) / .62), 1);
-      drawFlower(ctx, { x: x - 58 * growth, y: left, born: 0, seed: 2, radius: 26, kind: "tulip", color: "#ff4f78" }, now, bloom);
-      drawFlower(ctx, { x: x + 58 * growth, y: right, born: 0, seed: 3, radius: 22, kind: "rose", color: "#ff315d" }, now, bloom);
+      const branchBase=base+(top-base)*.55;
+      const left = drawStem(ctx, x, branchBase, canvas.height * .42, clamp((growth - .32) / .68), -1,x-58*growth);
+      const right = drawStem(ctx, x, branchBase, canvas.height * .46, clamp((growth - .38) / .62), 1,x+58*growth);
+      drawFlower(ctx, { x: x - 58 * growth, y: left, born: 0, seed: 2, radius: 26*(.15+bloom*.85), kind: "lily", color: "#ff4f78" }, now, bloom);
+      drawFlower(ctx, { x: x + 58 * growth, y: right, born: 0, seed: 3, radius: 22*(.15+bloom*.85), kind: "lily", color: "#ff315d" }, now, bloom);
     }
     ctx.save(); ctx.translate(x, top); ctx.scale(.25 + bloom * .9, .25 + bloom * .9);
     drawSpiderLily(ctx, 42, bloom); ctx.restore();
@@ -209,7 +227,7 @@ export function createBloomStudio({ canvas, ctx }) {
     hands.slice(0, 2).forEach((hand, index) => {
       const point = toCanvasPoint(hand[8], canvas.width, canvas.height), bloom = handBloomAmount(hand);
       ctx.strokeStyle = "rgba(60,210,110,.78)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(point.x, canvas.height); ctx.quadraticCurveTo(point.x + (index ? 44 : -44), canvas.height * .67, point.x, point.y); ctx.stroke();
-      ctx.save(); ctx.translate(point.x, point.y); ctx.rotate((index ? 1 : -1) * .12); drawSpiderLily(ctx, 35, bloom); ctx.restore();
+      ctx.save(); ctx.translate(point.x, point.y); ctx.rotate((index ? 1 : -1) * .12); drawSpiderLily(ctx, Math.min(canvas.width,canvas.height)*.115, bloom); ctx.restore();
       ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(point.x, point.y, 3, 0, Math.PI * 2); ctx.fill();
     });
     return "SPREAD TO BLOOM · PINCH TO BUD";
@@ -239,7 +257,7 @@ export function createBloomStudio({ canvas, ctx }) {
         particle.vx += dx * force; particle.vy += dy * force;
         if (pulling) { particle.vx += -dy * .00025 * dt; particle.vy += dx * .00025 * dt; }
       }
-      particle.vx *= .965; particle.vy *= .965;
+      particle.vx *= Math.pow(.965,dt); particle.vy *= Math.pow(.965,dt);
       particle.x += particle.vx * dt; particle.y += particle.vy * dt;
     }
     ctx.save(); ctx.globalCompositeOperation = "screen";
@@ -254,12 +272,16 @@ export function createBloomStudio({ canvas, ctx }) {
 
   function render(now, hands) {
     const dt = clamp(frameAt ? (now - frameAt) / 16.667 : 1, .25, 2.2); frameAt = now;
-    ctx.save(); ctx.fillStyle = scene === "storm" ? "rgba(1,3,9,.72)" : scene === "lilies" ? "rgba(5,5,7,.48)" : "rgba(5,8,10,.18)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    const dark=document.querySelector("#bloomBackdrop")?.checked;
+    if(dark){const background=ctx.createRadialGradient(canvas.width*.5,canvas.height*.42,0,canvas.width*.5,canvas.height*.42,canvas.width*.7);background.addColorStop(0,"#141222");background.addColorStop(1,"#020408");ctx.fillStyle=background;}
+    else ctx.fillStyle = scene === "storm" ? "rgba(1,3,9,.72)" : scene === "lilies" ? "rgba(5,5,7,.48)" : "rgba(5,8,10,.18)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     let label;
     if (scene === "storm") label = renderStorm(now, hands, dt);
-    else if (scene === "garden") label = renderGarden(now, hands);
+    else if (scene === "garden") label = renderGarden(now, hands,dt);
     else if (scene === "lilies") label = renderLilies(now, hands);
-    else label = renderFlowers(now, hands, scene === "red");
+    else label = renderFlowers(now, hands, scene === "red",dt);
     ctx.restore(); syncHelp(); return label;
   }
 

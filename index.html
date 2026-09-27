@@ -150,7 +150,7 @@
             <label>Control <select id="frameControl"><option value="easy">Easy two-hand hold</option><option value="perspective">Four fingertip corners</option></select></label>
             <label>Local style <select id="frameStyle"><option value="normal" selected>Natural</option><option value="neon">Neon edges</option><option value="thermal">Thermal</option><option value="sketch">Pencil edges</option><option value="pixel">Pixel art</option><option value="mono">Monochrome</option><option value="pop">Poster ink</option></select></label>
             <button id="freezeFrame" aria-pressed="false">Freeze photo</button>
-            <button id="recaptureFrame">Capture camera photo</button><label><input type="checkbox" id="liveFrame" /> Live texture</label>
+            <button id="recaptureFrame">Capture camera photo</button><label><input type="checkbox" id="liveFrame" checked /> Live texture</label>
             <label>Use your photo <input id="frameUpload" type="file" accept="image/png,image/jpeg,image/webp" /></label>
             <p id="frameHint">Easy mode: hold two open hands apart to move, resize and rotate the photo. Pinch once to capture.</p>
             <span class="tool-hint">Local styles only. The original FLUX-generated art needs a configured backend; it is not connected here.</span>
@@ -170,10 +170,11 @@
           <div class="studio-tools" id="bloomTools" hidden>
             <label>Scene <select id="bloomScene"><option value="wand">Flower wand</option><option value="red">Red blooms</option><option value="garden">Two-hand garden</option><option value="lilies">Spider lilies</option><option value="storm">Particle storm</option></select></label>
             <button id="clearBloom">Clear scene</button>
+            <label><input id="bloomBackdrop" type="checkbox" checked /> Dark stage</label>
             <p id="bloomHelp">Point to plant flowers. Open your palm once to scatter the whole garden.</p>
           </div>
           <div class="studio-tools" id="faceRecovery" hidden><button id="retryFace">Retry face tracking</button><span id="studioMessage" role="status"></span></div>
-          <div class="studio-tools"><button id="saveSnapshot" disabled>Save camera snapshot</button><span class="tool-hint">Saved only when you choose. Nothing is uploaded.</span></div>
+          <div class="studio-tools"><button id="saveSnapshot" disabled>Save camera snapshot</button><button id="studioView" aria-pressed="false">Expand studio</button><span class="tool-hint">Saved only when you choose. Nothing is uploaded.</span></div>
         </div>
       </section>
 

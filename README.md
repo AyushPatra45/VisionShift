@@ -77,6 +77,10 @@ Choose one of five local, procedural scenes:
 
 The scene ideas are adapted into Canvas 2D from the supplied reels and informed by [Magical Wands](https://github.com/Axshatt/Magical-Wands), the [spider-lily interaction](https://github.com/cupidbity/spiderlily), and common palm-force particle simulations. No Instagram media is bundled and no external generation API is used.
 
+Use **Expand studio** to give the camera/art the full content width. Bloom Studio starts with a dark radial backdrop; turn off **Dark stage** to see your live camera behind the flowers. Garden controls refer to the left and right sides of the mirrored preview. Each side retains its last value when its hand leaves view. Flower trails use distance-based spacing and fill between samples; scatter and particle damping account for frame time.
+
+HandFrame starts live. Freeze, Live texture, pinch capture, and photo upload now share the same state: capturing or uploading holds the photo until live mode is selected. Camera snapshots include the currently visible reaction meme. A failed hand-model download exposes **Retry hand tracking** without requiring a reload.
+
 ### Better cloak capture
 
 The capture button gives you three seconds to leave the scene and rejects captures where the model still detects a person. The bundled model's person-confidence mask is used directly, with soft edges; the surrounding camera feed remains live. The hidden region uses the saved reference, so camera movement, shadows, or moving objects behind you cannot be reconstructed perfectly.

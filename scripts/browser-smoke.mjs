@@ -1,7 +1,7 @@
 // Optional integration check: PLAYWRIGHT_PATH=/path/to/playwright/index.mjs node scripts/browser-smoke.mjs
 // Starts an isolated local server and a synthetic camera. Never records a user's webcam.
 import { spawn } from "node:child_process";
-import { readFile, mkdir } from "node:fs/promises";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH || "playwright");
 const port = 8186;
@@ -24,7 +24,7 @@ try {
   });
   await page.route("**/camera-studio.js", async route => {
     const source = await readFile(new URL("../camera-studio.js",import.meta.url),"utf8");
-    await route.fulfill({contentType:"text/javascript",body:source.replace("return { enter, render, get label()", `window.__studioTest = { setFace(result) { faceModel.detectForVideo = () => result; lastVideo = -1; lastFaceAt = 0; } };\n  return { enter, render, get label()`)});
+    await route.fulfill({contentType:"text/javascript",body:source.replace("return { enter, render,", `window.__studioTest = { setFace(result) { faceModel.detectForVideo = () => result; lastVideo = -1; lastFaceAt = 0; } };\n  return { enter, render,`)});
   });
   await page.goto(`http://127.0.0.1:${port}/`);
   await page.waitForFunction(()=>!document.querySelector("#startButton").disabled,{},{timeout:60000});
@@ -64,10 +64,19 @@ try {
     ]}]});
     window.__visionTest.studio.enter("focus");
   });
-  await page.waitForFunction(()=>window.__visionTest.studio.label === "WAKE UP",{},{timeout:5000});
-  assert.match(await page.locator("#focusReadout").textContent(),/ALARM ACTIVE/);
+  // Drive the test clock monotonically; do not mix the earlier fixed timestamps
+  // with animation-frame timestamps while waiting for an alarm screenshot.
+  const alarmFrame=await page.evaluate(()=>{
+    const studio=window.__visionTest.studio;
+    const start=performance.now();
+    studio.enter("focus");
+    studio.render(start,[]);studio.render(start+2000,[]);
+    return {label:studio.label,readout:document.querySelector("#focusReadout").textContent,image:document.querySelector("#output").toDataURL("image/png")};
+  });
+  assert.equal(alarmFrame.label,"WAKE UP");
+  assert.match(alarmFrame.readout,/ALARM ACTIVE/);
   await mkdir("/tmp/visionshift-qa",{recursive:true});
-  await page.screenshot({path:"/tmp/visionshift-qa/study-alarm.png",fullPage:true});
+  await writeFile("/tmp/visionshift-qa/study-alarm.png",Buffer.from(alarmFrame.image.split(",")[1],"base64"));
   console.log("PASS: expression effects and sustained-closure reminder with synthetic landmarks");
   const maskCheck = await page.evaluate(()=>{
     const t=window.__visionTest;
@@ -88,6 +97,20 @@ try {
   assert.equal(await page.locator("#freezeFrame").getAttribute("aria-pressed"),"true");
   await page.locator("#freezeFrame").click();
   assert.equal(await page.locator("#freezeFrame").getAttribute("aria-pressed"),"false");
+  await page.locator("#liveFrame").uncheck();
+  assert.equal(await page.locator("#freezeFrame").getAttribute("aria-pressed"),"true");
+  await page.locator("#liveFrame").check();
+  assert.equal(await page.locator("#freezeFrame").getAttribute("aria-pressed"),"false");
+  await page.waitForTimeout(220);
+  assert.equal(await page.evaluate(()=>{
+    const output=document.querySelector("#output"),video=document.querySelector("#webcam");
+    const reference=document.createElement("canvas");reference.width=output.width;reference.height=output.height;
+    const r=reference.getContext("2d");r.drawImage(video,0,0,reference.width,reference.height);
+    const hand=x=>Array.from({length:21},(_,i)=>({x,y:i===4?.7:.2,z:0}));
+    window.__visionTest.studio.render(performance.now(),[hand(.2),hand(.8)]);
+    const actual=output.getContext("2d").getImageData(2,2,1,1).data,expected=r.getImageData(2,2,1,1).data;
+    return actual.every((value,index)=>Math.abs(value-expected[index])<3);
+  }),true,"live HandFrame must not keep flashing the camera image");
   await mkdir("/tmp/visionshift-qa",{recursive:true});
   await page.screenshot({path:"/tmp/visionshift-qa/reel-frame.png",fullPage:true});
   await page.locator('[data-experience="face"].experience-button').click();
@@ -97,6 +120,11 @@ try {
   assert.equal(await page.locator(".reaction-overlay").getAttribute("alt"),"Heart hands");
   await page.waitForTimeout(500);
   await page.screenshot({path:"/tmp/visionshift-qa/reel-meme.png",fullPage:true});
+  assert.equal(await page.evaluate(()=>{
+    const c=document.createElement("canvas");c.width=640;c.height=480;
+    const context=c.getContext("2d");window.__visionTest.studio.compositeSnapshot(context);
+    return context.getImageData(0,0,c.width,c.height).data.some((v,i)=>i%4===3&&v>0);
+  }),true,"reaction snapshots must include the visible meme");
   await page.locator('[data-experience="draw"].experience-button').click();
   const ink = await page.evaluate(()=>{
     const t=window.__visionTest;
@@ -147,17 +175,31 @@ try {
   const bloomChecks={};
   for(const scene of ["wand","red","garden","lilies","storm"]){
     await page.locator("#bloomScene").selectOption(scene);
-    bloomChecks[scene]=await page.evaluate((scene)=>{
+    const result=await page.evaluate((scene)=>{
       const point=Array.from({length:21},()=>({x:.5,y:.7,z:0}));
       point[0]={x:.5,y:.95};point[5]={x:.4,y:.72};point[17]={x:.6,y:.72};
       point[6]={x:.45,y:.67};point[8]={x:.45,y:.35};point[4]={x:.22,y:.52};
       point[10]={x:.5,y:.61};point[12]={x:.5,y:.72};point[14]={x:.55,y:.61};point[16]={x:.55,y:.72};point[18]={x:.6,y:.62};point[20]={x:.6,y:.72};
-      const other=point.map(p=>({...p,x:Math.min(.95,p.x+.28)}));
-      return window.__visionTest.bloomStudio.render(42000,scene==="wand"||scene==="red"?[point]:[point,other]);
+      const other=point.map(p=>({...p,x:p.x-.2}));
+      const canvas=document.querySelector("#output"),ctx=canvas.getContext("2d");
+      let label;
+      for(let frame=0;frame<80;frame++){
+        ctx.fillStyle="#080b12";ctx.fillRect(0,0,canvas.width,canvas.height);
+        if(scene==="wand"||scene==="red")for(const p of point)p.x+=.003;
+        label=window.__visionTest.bloomStudio.render(42000+frame*16.667,scene==="wand"||scene==="red"?[point]:[point,other]);
+      }
+      return {label,image:canvas.toDataURL("image/png")};
     },scene);
+    bloomChecks[scene]=result.label;
+    await writeFile(`/tmp/visionshift-qa/bloom-${scene}.png`,Buffer.from(result.image.split(",")[1],"base64"));
   }
   assert.deepEqual(Object.keys(bloomChecks),["wand","red","garden","lilies","storm"]);
   assert.ok(Object.values(bloomChecks).every(Boolean));
+  assert.equal(bloomChecks.garden,"GROW 100% · BLOOM 100%");
+  await page.locator("#studioView").click();
+  assert.equal(await page.locator("#studioView").getAttribute("aria-pressed"),"true");
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.locator("#studioView").click();
   await page.screenshot({path:"/tmp/visionshift-qa/bloom-studio.png",fullPage:true});
   console.log("PASS: all five Bloom Studio scenes render from synthetic hands",bloomChecks);
   for (const mode of ["draw","frame","face","focus","sign","reader","bloom"]) {
@@ -179,4 +221,13 @@ try {
   await recovery.waitForFunction(()=>["FACE THE CAMERA","LEAVE FRAME"].includes(document.querySelector("#modeChip").textContent),{},{timeout:60000});
   await recovery.close();
   console.log("PASS: face-model outage shows an actionable error and Retry recovers");
+  const handRecovery=await context.newPage();
+  await handRecovery.route("**/models/gesture_recognizer.task",route=>route.fulfill({status:503,body:"Simulated outage"}));
+  await handRecovery.goto(`http://127.0.0.1:${port}/`);
+  await handRecovery.getByRole("button",{name:"Retry hand tracking",exact:true}).waitFor({timeout:60000});
+  await handRecovery.unroute("**/models/gesture_recognizer.task");
+  await handRecovery.getByRole("button",{name:"Retry hand tracking",exact:true}).click();
+  await handRecovery.waitForFunction(()=>!document.querySelector("#startButton").disabled&&document.querySelector("#startButton").textContent.includes("Enable camera"),{},{timeout:60000});
+  await handRecovery.close();
+  console.log("PASS: hand-model outage can recover without reloading the page");
 } finally { await browser?.close(); server.kill(); }

@@ -26,8 +26,8 @@ export function createReelRenderer(video,canvas,ctx) {
   upload.addEventListener("change",()=>{
     const file=upload.files[0];if(!file)return;
     if(!["image/png","image/jpeg","image/gif","image/webp"].includes(file.type)||file.size>12*1024*1024){info.textContent="Choose a PNG, JPEG, GIF or WebP under 12 MB.";return;}
-    const url=URL.createObjectURL(file),img=new Image();
-    img.onload=()=>{const old=assets.get(select.value);if(old?.src.startsWith("blob:"))URL.revokeObjectURL(old.src);assets.set(select.value,img);info.textContent="Custom meme ready. Kept only in this session.";};
+    const key=select.value, url=URL.createObjectURL(file),img=new Image();
+    img.onload=()=>{const old=assets.get(key);if(old?.src.startsWith("blob:"))URL.revokeObjectURL(old.src);assets.set(key,img);lastReaction=null;info.textContent="Custom meme ready. Kept only in this session.";};
     img.onerror=()=>{URL.revokeObjectURL(url);info.textContent="Could not read that image.";};img.src=url;
   });
   function hide(){overlay.hidden=true;reactionBadge.hidden=true;gate.reset();shown=null;lastReaction=null;until=0;manualUntil=0;calibratingUntil=0;}
@@ -47,7 +47,7 @@ export function createReelRenderer(video,canvas,ctx) {
     if(!img?.complete||!img.naturalWidth){overlay.hidden=true;reactionBadge.hidden=true;lastReaction=null;return null;}
     let x=canvas.width*.5,y=canvas.height*.35,w=canvas.width*.38;
     if(points?.[454]){w=Math.max(110,Math.hypot(points[234].x-points[454].x,points[234].y-points[454].y)*canvas.width*1.6);x=points[1].x*canvas.width;y=points[10].y*canvas.height-w*.35;}
-    w=Math.min(canvas.width*.65,w);const h=Math.min(canvas.height*.65,w*img.naturalHeight/img.naturalWidth);
+    w=Math.min(canvas.width*.65,canvas.height*.65*img.naturalWidth/img.naturalHeight,w);const h=w*img.naturalHeight/img.naturalWidth;
     x=Math.max(w/2,Math.min(canvas.width-w/2,x));y=Math.max(h/2+20,Math.min(canvas.height-h/2,y));
     if(lastReaction!==shown){overlay.src=img.src;overlay.classList.remove("reaction-pop");void overlay.offsetWidth;overlay.classList.add("reaction-pop");lastReaction=shown;}
     overlay.hidden=false;
@@ -63,14 +63,15 @@ export function createReelRenderer(video,canvas,ctx) {
     if(sourceAspect>targetAspect){cw=sh*targetAspect;sx=(sw-cw)/2;}else{ch=sw/targetAspect;sy=(sh-ch)/2;}
     pc.clearRect(0,0,photo.width,photo.height);pc.drawImage(source,sx,sy,cw,ch,0,0,photo.width,photo.height);return true;
   }
-  function capture(){if(!drawCover(video))return;captured=true;flashUntil=performance.now()+180;}
-  document.querySelector("#recaptureFrame").addEventListener("click",()=>{capture();document.querySelector("#frameHint").textContent="Camera photo captured. Hold both hands apart to float it.";});
+  function capture(flash=true){if(!drawCover(video))return;if(!captured||flash)lastStyleAt=-Infinity;captured=true;if(flash)flashUntil=performance.now()+180;}
+  function freezePhoto(){document.querySelector("#liveFrame").checked=false;document.querySelector("#liveFrame").dispatchEvent(new Event("change"));}
+  document.querySelector("#recaptureFrame").addEventListener("click",()=>{capture();freezePhoto();document.querySelector("#frameHint").textContent="Camera photo captured. Hold both hands apart to float it.";});
   const frameUpload=document.querySelector("#frameUpload");
   frameUpload.addEventListener("change",()=>{
     const file=frameUpload.files[0];if(!file)return;
     if(!["image/png","image/jpeg","image/webp"].includes(file.type)||file.size>12*1024*1024){document.querySelector("#frameHint").textContent="Choose a PNG, JPEG or WebP under 12 MB.";return;}
     const url=URL.createObjectURL(file),image=new Image();
-    image.onload=()=>{drawCover(image);captured=true;URL.revokeObjectURL(url);document.querySelector("#frameHint").textContent="Photo loaded locally. Hold both hands apart to move and rotate it.";};
+    image.onload=()=>{drawCover(image);captured=true;lastStyleAt=-Infinity;freezePhoto();URL.revokeObjectURL(url);document.querySelector("#frameHint").textContent="Photo loaded locally. Hold both hands apart to move and rotate it.";};
     image.onerror=()=>{URL.revokeObjectURL(url);document.querySelector("#frameHint").textContent="That photo could not be opened.";};image.src=url;
   });
   const control=document.querySelector("#frameControl");
@@ -104,12 +105,12 @@ export function createReelRenderer(video,canvas,ctx) {
   }
   function frame(hands,style,frozen,now){
     const pinching=hands.some(hand=>isPinching(hand,.4));
-    if(pinching&&!pinchLatched){capture();document.querySelector("#frameHint").textContent="Photo captured. Open both hands and move them apart to control it.";}
+    if(pinching&&!pinchLatched){capture();freezePhoto();document.querySelector("#frameHint").textContent="Photo captured. Open both hands and move them apart to control it.";}
     pinchLatched=pinching;
     const target=control.value==="perspective"?handQuad(hands,canvas.width,canvas.height):easyFrameQuad(hands,canvas.width,canvas.height);
     if(target){if(!quad)quad=target;else quad=quad.map((p,i)=>{const d=Math.hypot(target[i].x-p.x,target[i].y-p.y),alpha=Math.min(.48,.16+d/420);return{x:p.x+(target[i].x-p.x)*alpha,y:p.y+(target[i].y-p.y)*alpha};});}
     if(!quad)return control.value==="perspective"?"SHOW TWO L-SHAPED HANDS":"SHOW TWO HANDS APART";
-    if(!captured||(!frozen&&document.querySelector("#liveFrame").checked))capture();
+    if(!captured||document.querySelector("#liveFrame").checked)capture(false);
     if(now-lastStyleAt>100){stylize(style);lastStyleAt=now;}
     ctx.save();ctx.beginPath();quad.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();
     ctx.shadowColor="rgba(0,0,0,.72)";ctx.shadowBlur=30;ctx.shadowOffsetY=18;ctx.fillStyle="#f6f0e5";ctx.fill();ctx.restore();
@@ -127,5 +128,13 @@ export function createReelRenderer(video,canvas,ctx) {
     if(now<flashUntil){ctx.fillStyle=`rgba(255,255,255,${(flashUntil-now)/180*.5})`;ctx.fillRect(0,0,canvas.width,canvas.height);}
     return control.value==="easy"?"TWO HANDS · MOVE + ROTATE · PINCH CAPTURES":"FOUR FINGERTIPS · PERSPECTIVE FRAME";
   }
-  return {reactions,frame,hide};
+  function compositeSnapshot(out) {
+    if(overlay.hidden||!overlay.complete||!overlay.naturalWidth)return;
+    const x=parseFloat(overlay.style.left)/100*canvas.width,y=parseFloat(overlay.style.top)/100*canvas.height;
+    const w=parseFloat(overlay.style.width)/100*canvas.width,h=parseFloat(overlay.style.height)/100*canvas.height;
+    out.save();out.setTransform(1,0,0,1,0,0);
+    out.fillStyle="#080c10";out.fillRect(x-5,y-5,w+10,h+10);
+    out.drawImage(overlay,x,y,w,h);out.restore();
+  }
+  return {reactions,frame,hide,compositeSnapshot};
 }

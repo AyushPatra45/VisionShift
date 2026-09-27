@@ -143,6 +143,12 @@ export function createCameraStudio({ video, canvas, ctx }) {
     event.target.textContent = frozen ? "Use live frame" : "Freeze photo";
     event.target.setAttribute("aria-pressed",String(frozen));
   });
+  document.querySelector("#liveFrame").addEventListener("change", event => {
+    frozen = !event.target.checked;
+    const button = document.querySelector("#freezeFrame");
+    button.textContent = frozen ? "Use live frame" : "Freeze photo";
+    button.setAttribute("aria-pressed", String(frozen));
+  });
   document.querySelector("#retryFace").addEventListener("click", () => { if (!faceModel) loadFace(); });
   document.querySelector("#reminderSound").addEventListener("change", async event => {
     if (!event.target.checked) { stopReminder(); return; }
@@ -153,5 +159,5 @@ export function createCameraStudio({ video, canvas, ctx }) {
     if (!document.querySelector("#reminderSound").checked) document.querySelector("#reminderSound").checked = true;
     if (await unlockReminderAudio()) playReminderAlarm(performance.now(), true);
   });
-  return { enter, render, get label() { return label; } };
+  return { enter, render, compositeSnapshot: reels.compositeSnapshot, get label() { return label; } };
 }

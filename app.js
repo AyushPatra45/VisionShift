@@ -267,6 +267,9 @@ async function createWithDelegateFallback(createTask, taskName) {
 }
 
 async function loadModels() {
+  startButton.disabled = true;
+  status.classList.remove("error");
+  loadNote.textContent = "Loading hand tracking…";
   try {
     const vision = await FilesetResolver.forVisionTasks(WASM_URL);
     recognizer = await createWithDelegateFallback(
@@ -282,6 +285,7 @@ async function loadModels() {
     );
 
     startButton.disabled = false;
+    startButton.textContent = "Enable camera →";
     loadNote.textContent = "Hand tracking ready · loading cloak engine…";
     status.classList.add("ready");
     statusText.textContent = "HAND TRACKING READY";
@@ -307,14 +311,16 @@ async function loadModels() {
     }
   } catch (error) {
     console.error(error);
-    startButton.disabled = true;
-    loadNote.textContent = "Could not load the local hand-tracking engine.";
+    startButton.disabled = false;
+    startButton.textContent = "Retry hand tracking";
+    loadNote.textContent = "Hand tracking could not load. Check your connection and select Retry hand tracking.";
     status.classList.add("error");
     statusText.textContent = "MODEL ERROR";
   }
 }
 
 async function startCamera() {
+  if (!recognizer) { await loadModels(); return; }
   if (!navigator.mediaDevices?.getUserMedia) {
     loadNote.textContent = "Camera access needs HTTPS or localhost in a supported browser.";
     status.classList.add("error");
@@ -343,6 +349,8 @@ async function startCamera() {
     requestAnimationFrame(render);
   } catch (error) {
     clearTimeout(permissionReminder);
+    video.srcObject?.getTracks().forEach(track => track.stop());
+    video.srcObject = null;
     console.error(error);
     startButton.disabled = false;
     loadNote.textContent = "Camera blocked. Allow access in your browser settings.";
@@ -709,13 +717,14 @@ function clearDrawing() {
   drawState.editing = false;
 }
 
-function saveCanvas(source, filename, fill = null) {
+function saveCanvas(source, filename, fill = null, overlay = null) {
   const exported = document.createElement("canvas");
   exported.width = source.width; exported.height = source.height;
   const out = exported.getContext("2d");
   if (fill) { out.fillStyle = fill; out.fillRect(0,0,exported.width,exported.height); }
   // Match the mirrored preview so handwriting is readable in the saved image.
   out.translate(exported.width,0); out.scale(-1,1); out.drawImage(source,0,0);
+  overlay?.(out);
   exported.toBlob(blob => {
     if (!blob) return;
     const url = URL.createObjectURL(blob), link = document.createElement("a");
@@ -1575,7 +1584,13 @@ document.querySelector("#drawingStyle").addEventListener("change", event => {
 });
 document.querySelector("#cleanBoard").addEventListener("change", event => { drawState.board = event.target.checked; });
 document.querySelector("#saveSnapshot").addEventListener("click", () => {
-  if (video.srcObject) saveCanvas(canvas, "visionshift-snapshot.png");
+  if (video.srcObject) saveCanvas(canvas, "visionshift-snapshot.png", null, activeExperience === "face" ? studio.compositeSnapshot : null);
+});
+document.querySelector("#studioView").addEventListener("click", event => {
+  const expanded = document.querySelector(".hero").classList.toggle("studio-expanded");
+  event.currentTarget.textContent = expanded ? "Exit studio view" : "Expand studio";
+  event.currentTarget.setAttribute("aria-pressed", String(expanded));
+  if(expanded) stage.scrollIntoView({behavior:"smooth",block:"start"});
 });
 captureButton.addEventListener("click", captureBackground);
 window.addEventListener("visionshift:experience", (event) => {
