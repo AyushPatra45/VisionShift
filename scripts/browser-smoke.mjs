@@ -173,8 +173,9 @@ try {
   await page.setViewportSize({width:390,height:844});
   await page.locator('[data-experience="bloom"].experience-button').click();
   const bloomChecks={};
-  for(const scene of ["wand","red","garden","lilies","storm"]){
+  for(const scene of ["wand","red","garden","lilies","storm","stars","sparkler","garden3d"]){
     await page.locator("#bloomScene").selectOption(scene);
+    if(scene==="garden3d")await page.waitForFunction(()=>window.__visionTest.bloomStudio.threeReady,{},{timeout:20000});
     const result=await page.evaluate((scene)=>{
       const point=Array.from({length:21},()=>({x:.5,y:.7,z:0}));
       point[0]={x:.5,y:.95};point[5]={x:.4,y:.72};point[17]={x:.6,y:.72};
@@ -185,23 +186,32 @@ try {
       let label;
       for(let frame=0;frame<80;frame++){
         ctx.fillStyle="#080b12";ctx.fillRect(0,0,canvas.width,canvas.height);
-        if(scene==="wand"||scene==="red")for(const p of point)p.x+=.003;
-        label=window.__visionTest.bloomStudio.render(42000+frame*16.667,scene==="wand"||scene==="red"?[point]:[point,other]);
+        const trail=["wand","red","stars","sparkler"].includes(scene);
+        if(trail)for(const p of point){p.x+=.003;p.y+=Math.sin(frame*.11)*.004;}
+        label=window.__visionTest.bloomStudio.render(42000+frame*16.667,trail?[point]:[point,other]);
       }
       return {label,image:canvas.toDataURL("image/png")};
     },scene);
     bloomChecks[scene]=result.label;
     await writeFile(`/tmp/visionshift-qa/bloom-${scene}.png`,Buffer.from(result.image.split(",")[1],"base64"));
   }
-  assert.deepEqual(Object.keys(bloomChecks),["wand","red","garden","lilies","storm"]);
+  assert.deepEqual(Object.keys(bloomChecks),["wand","red","garden","lilies","storm","stars","sparkler","garden3d"]);
   assert.ok(Object.values(bloomChecks).every(Boolean));
   assert.equal(bloomChecks.garden,"GROW 100% · BLOOM 100%");
+  assert.equal(bloomChecks.garden3d,"3D · GROW 100% · BLOOM 100%");
+  assert.match(bloomChecks.sparkler,/SPARKLER/);
+  await page.locator("#previewGarden").check();
+  await page.waitForFunction(()=>document.querySelector("#modeChip").textContent.includes("3D PREVIEW"));
+  await page.locator("#gardenAngle").fill("90");
+  await page.locator("#previewGarden").uncheck();
+  const artDownload=page.waitForEvent("download");await page.locator("#saveSnapshot").click();
+  assert.equal((await artDownload).suggestedFilename(),"visionshift-snapshot.png");
   await page.locator("#studioView").click();
   assert.equal(await page.locator("#studioView").getAttribute("aria-pressed"),"true");
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.locator("#studioView").click();
   await page.screenshot({path:"/tmp/visionshift-qa/bloom-studio.png",fullPage:true});
-  console.log("PASS: all five Bloom Studio scenes render from synthetic hands",bloomChecks);
+  console.log("PASS: all eight Bloom Studio scenes, real WebGL garden, preview/orbit and snapshot export",bloomChecks);
   for (const mode of ["draw","frame","face","focus","sign","reader","bloom"]) {
     await page.locator(`[data-experience="${mode}"].experience-button`).click();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${mode} mobile overflow`);
@@ -230,4 +240,18 @@ try {
   await handRecovery.waitForFunction(()=>!document.querySelector("#startButton").disabled&&document.querySelector("#startButton").textContent.includes("Enable camera"),{},{timeout:60000});
   await handRecovery.close();
   console.log("PASS: hand-model outage can recover without reloading the page");
+  const threeRecovery=await context.newPage();
+  await threeRecovery.route("**/garden-3d.js*",route=>route.fulfill({status:503,body:"Simulated 3D module outage"}));
+  await threeRecovery.goto(`http://127.0.0.1:${port}/`);
+  await threeRecovery.waitForFunction(()=>!document.querySelector("#startButton").disabled,{},{timeout:60000});
+  await threeRecovery.locator("#startButton").click();
+  await threeRecovery.locator('[data-experience="bloom"].experience-button').click();
+  await threeRecovery.locator("#bloomScene").selectOption("garden3d");
+  await threeRecovery.locator("#retryGarden3D").waitFor({state:"visible"});
+  await threeRecovery.waitForFunction(()=>document.querySelector("#modeChip").textContent.includes("2D FALLBACK"));
+  await threeRecovery.unroute("**/garden-3d.js*");
+  await threeRecovery.locator("#retryGarden3D").click();
+  await threeRecovery.waitForFunction(()=>document.querySelector("#modeChip").textContent.startsWith("3D ·"),{},{timeout:20000});
+  await threeRecovery.close();
+  console.log("PASS: failed 3D module falls back to 2D and Retry restores WebGL");
 } finally { await browser?.close(); server.kill(); }

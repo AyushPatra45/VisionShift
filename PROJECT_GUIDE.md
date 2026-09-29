@@ -71,7 +71,11 @@ Bilateral eye closure drives the experimental Study Reminder. When its selected 
 
 ### 11 · Bloom Studio
 
-`bloom-studio.js` provides five selectable scenes on the existing shared hand feed. Flower Wand and Red Blooms use a geometry-based pointing pose, movement spacing, capped object pools and an open-palm scatter latch. Two-hand Garden sorts visible hands left-to-right and normalizes each thumb/index spread: the left-side spread controls procedural stem growth while the right-side spread controls staged petal opening. Spider Lilies anchor curved petals and stamens to up to two fingertips. Particle Storm runs a bounded spring/velocity field; one palm repels particles and two nearby palms attract and swirl them. All scenes use Canvas 2D and require no backend.
+`bloom-studio.js` provides eight selectable scenes on the shared hand feed. Flower Wand and Red Blooms use pointing geometry, movement spacing, bounded object pools and an open-palm scatter latch. Garden controls refer to sides of the mirrored preview: left-side spread grows the plant while right-side spread opens petals; missing hands retain the last setting. Spider Lilies anchor to fingertips. Particle Storm uses spring/velocity forces.
+
+`sky-effects.js` implements Constellation Wishes and Golden Sparkler. Constellations keep at most 80 stars, require fist charging followed by a deliberate 120 ms open palm, and release into a bounded 1,000-particle pool. Sparklers emit by elapsed time and interpolate tip positions to avoid gaps. Particles expire after release. `sky-effects.test.js` verifies the release sequence, false-palm protection, reset and expiration.
+
+`garden-3d.js` loads on demand with the locally bundled Three.js runtime. It creates original indexed petal surfaces with updated normals, curved stem/stamen tubes, folded leaves, metallic anthers, a perspective camera and three lights. Stem growth and petal opening respond independently to hand spread. Orbit is controlled by a slider; Preview animation explicitly replaces gesture control while checked. WebGL output is composited into the shared canvas, so snapshots include it. Failed imports or lost contexts show the 2D garden and an explicit retry; retries use a new module URL to recover from browser-cached import failures. All eight scenes run locally without a backend.
 
 `studio-utils.js` contains independently tested hold timers, pointing detection, bounded drawing history, hand-frame geometry, and eye-closure state. Air Canvas gives index-up geometry priority over canned gesture labels. Command holds, adaptive smoothing, brief tracking-loss grace, and long-jump guards reduce false stroke breaks; Undo/Redo include erase/clear edits. Export mirrors the offscreen ink to match the displayed handwriting.
 
@@ -102,6 +106,8 @@ API and continuous sign-language translation work remains paused; the existing p
 | `reel-renderer.js` | Reaction cards and the easy/perspective floating photo renderer |
 | `reel-utils.js` | Reaction rules, two-hand frame geometry, and homography projection |
 | `bloom-studio.js` | Procedural flower scenes and hand-force particle simulation |
+| `garden-3d.js` | Lazy-loaded Three.js garden with original petal meshes and lighting |
+| `sky-effects.js` | Bounded constellation and sparkler simulations and rendering |
 | `studio-utils.js` | Command holds, drawing history, frame geometry, eye-closure timer |
 | `scripts/browser-smoke.mjs` | Isolated browser checks using a synthetic camera |
 | `*.test.js` | Unit tests for state and reusable geometry/classification helpers |

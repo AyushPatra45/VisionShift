@@ -1,5 +1,6 @@
 import { normalizedPinchDistance, toCanvasPoint } from "./interaction-utils.js";
 import { getFingerStates } from "./sign-utils.js";
+import { createSkySimulation, paintSky } from "./sky-effects.js";
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const seeded = seed => (Math.sin(seed * 91.733) * 43758.5453) % 1;
@@ -127,13 +128,23 @@ export function createBloomStudio({ canvas, ctx }) {
   let scene = "wand", flowers = [], particles = [], previousTips = new Map();
   let openLatched = false, frameAt = 0, flowerId = 0;
   let gardenGrowth=.15,gardenBloom=.12;
+  const sky=createSkySimulation();
+  let garden3D=null,gardenLoading=null,gardenError="",demoAt=0,gardenAttempt=0;
   const sceneSelect = document.querySelector("#bloomScene");
   const help = document.querySelector("#bloomHelp");
 
-  function reset() { flowers = []; particles = []; previousTips.clear(); openLatched = false; frameAt=0;gardenGrowth=.15;gardenBloom=.12; }
+  function reset() { flowers = []; particles = []; previousTips.clear(); openLatched = false; frameAt=0;gardenGrowth=.15;gardenBloom=.12;sky.reset();demoAt=0; }
   function enter() { previousTips.clear(); openLatched = false; frameAt=0; }
-  sceneSelect?.addEventListener("change", event => { scene = event.target.value; reset(); syncHelp(); });
+  function loadGarden3D(){
+    if(garden3D||gardenLoading||gardenError)return;
+    gardenLoading=import(`./garden-3d.js${gardenAttempt?`?retry=${gardenAttempt}`:""}`).then(module=>{garden3D=module.createGarden3D();})
+      .catch(error=>{gardenError="3D unavailable on this browser. The 2D garden is active; you can retry below.";console.warn("3D garden unavailable",error);})
+      .finally(()=>{gardenLoading=null;syncHelp();});
+  }
+  sceneSelect?.addEventListener("change", event => { scene = event.target.value; reset(); if(scene==="garden3d")loadGarden3D(); syncHelp(); });
   document.querySelector("#clearBloom")?.addEventListener("click", reset);
+  document.querySelector("#retryGarden3D")?.addEventListener("click",()=>{garden3D?.dispose();garden3D=null;gardenError="";gardenAttempt++;loadGarden3D();syncHelp();});
+  document.querySelector("#previewGarden")?.addEventListener("change",()=>{demoAt=0;});
 
   function syncHelp(status = "") {
     const instructions = {
@@ -142,8 +153,14 @@ export function createBloomStudio({ canvas, ctx }) {
       garden: "Use the left-side hand spread to grow the stem and the right-side hand spread to open the bloom.",
       lilies: "Spread each thumb and index finger to open a spider lily; pinch to close it into a bud.",
       storm: "Move one palm to repel the field. Bring two hands close to pull the storm together.",
+      garden3d: "Left side: spread thumb + index to grow. Right side: spread to bloom. Change View angle to orbit, or use Preview animation to watch it grow.",
+      stars: "Point in several places to place stars. Hold a closed fist to charge them, then open your palm to release a wish.",
+      sparkler: "Raise only your index finger and move to write with golden sparks. Lower it to let the trail fade.",
     };
-    if (help) help.textContent = status || instructions[scene];
+    const text=status||(scene==="garden3d"&&gardenError)||instructions[scene];
+    if (help&&help.textContent!==text) help.textContent=text;
+    const controls=document.querySelector("#garden3dControls");if(controls)controls.hidden=scene!=="garden3d";
+    const retry=document.querySelector("#retryGarden3D");if(retry)retry.hidden=scene!=="garden3d"||!gardenError;
   }
 
   function spawn(x, y, now, red = false) {
@@ -222,6 +239,34 @@ export function createBloomStudio({ canvas, ctx }) {
     return hands.length < 2 ? "SHOW TWO HANDS · SPREAD THUMB + INDEX" : `GROW ${Math.round(growth * 100)}% · BLOOM ${Math.round(bloom * 100)}%`;
   }
 
+  function renderSculpture(now,hands,dt){
+    if(!garden3D){loadGarden3D();renderGarden(now,hands,dt);return gardenError?"2D FALLBACK · RETRY 3D BELOW":"LOADING 3D GARDEN…";}
+    const left=hands.find(hand=>hand[9].x>=.5),right=hands.find(hand=>hand[9].x<.5),blend=1-Math.exp(-.13*dt);
+    const preview=document.querySelector("#previewGarden")?.checked;
+    if(preview){
+      demoAt ||= now;
+      const t=Math.max(0,(now-demoAt)/1000);
+      gardenGrowth=.15+.85*clamp(t/2.2);
+      gardenBloom=.05+.95*(.5-.5*Math.cos(Math.max(0,t-1.3)*.8));
+    }else{
+      if(left)gardenGrowth+=(handBloomAmount(left)-gardenGrowth)*blend;
+      if(right)gardenBloom+=(handBloomAmount(right)-gardenBloom)*blend;
+    }
+    try{
+      const surface=garden3D.render({width:canvas.width,height:canvas.height,growth:gardenGrowth,bloom:gardenBloom,
+        angle:Number(document.querySelector("#gardenAngle")?.value||0)*Math.PI/180,now});
+      ctx.drawImage(surface,0,0,canvas.width,canvas.height);
+    }catch(error){garden3D.dispose();garden3D=null;gardenError="3D graphics interrupted. The 2D garden is active; retry below.";renderGarden(now,hands,dt);return "2D FALLBACK · RETRY 3D BELOW";}
+    return preview?"3D PREVIEW · TURN OFF TO USE YOUR HANDS":`3D · GROW ${Math.round(gardenGrowth*100)}% · BLOOM ${Math.round(gardenBloom*100)}%`;
+  }
+
+  function renderSky(now,hands){
+    const pointing=hands.find(isPointingHand),point=pointing?toCanvasPoint(pointing[8],canvas.width,canvas.height):null;
+    const fist=hands.some(hand=>getFingerStates(hand)?.slice(1).every(value=>!value));
+    const state=sky.update({mode:scene,now,point,fist,palm:hands.some(isOpenHand),width:canvas.width,height:canvas.height});
+    paintSky(ctx,canvas,state,now,scene==="sparkler"?point:null);return state.label;
+  }
+
   function renderLilies(now, hands) {
     if (!hands.length) return "SHOW YOUR HANDS";
     hands.slice(0, 2).forEach((hand, index) => {
@@ -279,6 +324,8 @@ export function createBloomStudio({ canvas, ctx }) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     let label;
     if (scene === "storm") label = renderStorm(now, hands, dt);
+    else if (scene === "garden3d") label = renderSculpture(now,hands,dt);
+    else if (scene === "stars" || scene === "sparkler") label = renderSky(now,hands);
     else if (scene === "garden") label = renderGarden(now, hands,dt);
     else if (scene === "lilies") label = renderLilies(now, hands);
     else label = renderFlowers(now, hands, scene === "red",dt);
@@ -286,5 +333,5 @@ export function createBloomStudio({ canvas, ctx }) {
   }
 
   syncHelp();
-  return { enter, render, reset, get scene() { return scene; } };
+  return { enter, render, reset, get scene() { return scene; }, get threeReady(){return Boolean(garden3D);},get skyStats(){return sky.stats;} };
 }

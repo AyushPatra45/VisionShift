@@ -65,6 +65,9 @@ h1 em { color: var(--acid); font-style: normal; }
 .hero.studio-expanded .stage-wrap { width:100%; max-width:1200px; margin-inline:auto; }
 .hero.studio-expanded .stage { scroll-margin-top:20px; }
 #stage[data-experience="bloom"] .scanline, #stage[data-experience="frame"] .scanline { display:none; }
+.garden-controls { display:flex; flex-wrap:wrap; gap:14px; align-items:center; flex-basis:100%; }
+.garden-controls[hidden] { display:none; }
+.garden-controls input[type="range"] { width:140px; accent-color:var(--accent, #c8ff42); }
 .scanline { display: none; }
 .corner { position: absolute; width: 24px; height: 24px; border-color: var(--acid); opacity: .7; pointer-events: none; }
 .corner-tl { top: 14px; left: 14px; border-top: 1px solid; border-left: 1px solid; }

@@ -65,17 +65,20 @@ Choose an eyes-closed delay (1.8, 3, or 5 seconds). Sustained closure of both ey
 
 ### 11 · Bloom Studio
 
-Choose one of five local, procedural scenes:
+Choose one of eight local art scenes:
 
 | Scene | Hand control |
 | --- | --- |
+| 3D Blooming Garden · new | Left-side thumb/index spread grows a lit 3D plant; right-side spread opens its curved petals. Orbit with View angle, or turn on Preview animation |
+| Constellation Wishes · new | Point to place stars; hold a fist to charge, then open the palm to burst them into a wish |
+| Golden Sparkler · new | Raise only the index finger and write with falling golden sparks; lower it to let the trail fade |
 | Flower Wand | Point to plant colorful species; open the palm to scatter them with gravity |
 | Red Blooms | Point and move to paint glowing red flowers and growing stems |
 | Two-hand Garden | Left-side thumb/index spread grows the structure; right-side spread opens the flower |
 | Spider Lilies | Each hand anchors a crimson lily; pinch closes the bud and spreading opens it |
 | Particle Storm | One palm repels the field; two nearby palms pull it into a magnetic vortex |
 
-The scene ideas are adapted into Canvas 2D from the supplied reels and informed by [Magical Wands](https://github.com/Axshatt/Magical-Wands), the [spider-lily interaction](https://github.com/cupidbity/spiderlily), and common palm-force particle simulations. No Instagram media is bundled and no external generation API is used.
+The scene ideas are adapted from the supplied reels and informed by [Magical Wands](https://github.com/Axshatt/Magical-Wands), the [spider-lily interaction](https://github.com/cupidbity/spiderlily), and common palm-force particle simulations. The 3D garden uses original Three.js meshes, lighting, and depth; the other scenes use Canvas 2D. Three.js loads only when 3D is selected. If WebGL2 or its module is unavailable, the existing 2D garden stays usable with a retry option. No Instagram media is bundled and no external generation API is used.
 
 Use **Expand studio** to give the camera/art the full content width. Bloom Studio starts with a dark radial backdrop; turn off **Dark stage** to see your live camera behind the flowers. Garden controls refer to the left and right sides of the mirrored preview. Each side retains its last value when its hand leaves view. Flower trails use distance-based spacing and fill between samples; scatter and particle damping account for frame time.
 

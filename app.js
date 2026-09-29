@@ -98,7 +98,7 @@ const EXPERIENCE_META = Object.freeze({
   bloom: {
     eyebrow: "EXPERIENCE 11 / BLOOM STUDIO",
     stage: "BLOOM STUDIO / LIVE",
-    description: "Plant and scatter procedural flowers, grow a two-hand garden, sculpt spider lilies, or push a luminous particle storm.",
+    description: "Grow a 3D flower garden, charge and release constellations, write with golden sparks, and explore five more hand-controlled art scenes.",
   },
 });
 

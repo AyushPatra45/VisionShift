@@ -19,6 +19,8 @@ const files = [
   "reel-utils.js",
   "reel-renderer.js",
   "bloom-studio.js",
+  "sky-effects.js",
+  "garden-3d.js",
   "THIRD_PARTY_NOTICES.md",
 ];
 
@@ -39,5 +41,8 @@ cpSync(
   { recursive: true },
 );
 writeFileSync(resolve(output, ".nojekyll"), "");
+mkdirSync(resolve(output,"node_modules/three/build"),{recursive:true});
+for(const file of ["three.module.js","three.core.js"])cpSync(resolve(projectRoot,"node_modules/three/build",file),resolve(output,"node_modules/three/build",file));
+cpSync(resolve(projectRoot,"node_modules/three/LICENSE"),resolve(output,"node_modules/three/LICENSE"));
 
 console.log("Built deployable site in dist/");

@@ -8,7 +8,7 @@ Both repositories publish under the MIT License below. Third-party meme
 characters/images may retain their respective owners' rights; this notice
 does not grant additional rights to those underlying works.
 
-Bloom Studio is an original Canvas implementation inspired by the interaction
+Bloom Studio is an original Canvas/Three.js implementation inspired by the interaction
 descriptions and public demonstrations in:
 
 - https://github.com/Axshatt/Magical-Wands (MIT License)
@@ -19,6 +19,11 @@ No code or media from these three projects is bundled. Their ideas informed
 the point-to-plant/open-palm scatter, two-hand grow/bloom, and palm-force
 particle controls. Their authors and projects remain credited here and in the
 on-page control guide.
+
+The locally bundled Three.js 0.180.0 runtime is Copyright © 2010-2025 three.js
+authors, under the MIT License. Its full notice ships at
+`node_modules/three/LICENSE`. The 3D plant meshes are original procedural
+geometry; no spiderlily source code or model files are copied.
 
 MIT License
 

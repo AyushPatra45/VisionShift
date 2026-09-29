@@ -168,9 +168,11 @@
             <p id="focusReadout">Enable the camera and face it in good light.</p>
           </div>
           <div class="studio-tools" id="bloomTools" hidden>
-            <label>Scene <select id="bloomScene"><option value="wand">Flower wand</option><option value="red">Red blooms</option><option value="garden">Two-hand garden</option><option value="lilies">Spider lilies</option><option value="storm">Particle storm</option></select></label>
+            <label>Scene <select id="bloomScene"><optgroup label="New from the reel references"><option value="garden3d">3D blooming garden · NEW</option><option value="stars">Constellation wishes · NEW</option><option value="sparkler">Golden sparkler · NEW</option></optgroup><optgroup label="Flowers + particles"><option value="wand" selected>Flower wand</option><option value="red">Red blooms</option><option value="garden">Two-hand garden</option><option value="lilies">Spider lilies</option><option value="storm">Particle storm</option></optgroup></select></label>
             <button id="clearBloom">Clear scene</button>
             <label><input id="bloomBackdrop" type="checkbox" checked /> Dark stage</label>
+            <div id="garden3dControls" class="garden-controls" hidden><label>View angle <input id="gardenAngle" type="range" min="-180" max="180" value="20" aria-label="3D garden view angle" /></label><label><input id="previewGarden" type="checkbox" /> Preview animation</label></div>
+            <button id="retryGarden3D" hidden>Retry 3D garden</button>
             <p id="bloomHelp">Point to plant flowers. Open your palm once to scatter the whole garden.</p>
           </div>
           <div class="studio-tools" id="faceRecovery" hidden><button id="retryFace">Retry face tracking</button><span id="studioMessage" role="status"></span></div>
@@ -283,7 +285,12 @@
             <article class="gesture-card"><span class="key">02</span><span class="hand">🖐️</span><div><h3>Scatter + force</h3><p>Open palm releases flowers or pushes particles</p></div></article>
             <article class="gesture-card"><span class="key">03</span><span class="hand">🤏</span><div><h3>Grow + bloom</h3><p>Two-hand spread controls stem and petals</p></div></article>
           </div>
-          <p class="module-note">Five scenes adapted for this browser from the linked reel ideas: procedural wand flowers, red bloom painting, independent stem/bloom controls, hand-anchored spider lilies and a particle force field. Inspired by <a href="https://github.com/Axshatt/Magical-Wands">Magical Wands</a>, <a href="https://github.com/cupidbity/spiderlily">cupidbity/spiderlily</a>, and open hand-particle interaction patterns. Everything renders locally.</p>
+          <div class="gesture-grid gesture-grid-three">
+            <article class="gesture-card"><span class="key">NEW</span><span class="hand">✦</span><div><h3>Constellation wishes</h3><p>Point to place stars · fist to charge · palm to burst</p></div></article>
+            <article class="gesture-card"><span class="key">NEW</span><span class="hand">✧</span><div><h3>Golden sparkler</h3><p>Point and write with light · lower finger to fade</p></div></article>
+            <article class="gesture-card"><span class="key">NEW</span><span class="hand">❀</span><div><h3>3D blooming garden</h3><p>Left side grows · right side blooms · slide to orbit</p></div></article>
+          </div>
+          <p class="module-note">Eight scenes inspired by <a href="https://github.com/Axshatt/Magical-Wands">Magical Wands</a>, <a href="https://github.com/cupidbity/spiderlily">cupidbity/spiderlily</a>, and the linked reel ideas. The new 3D garden uses lit, curved petal meshes; constellation wishes and sparklers use local particle simulations. Choose a scene above for its controls. Everything renders locally.</p>
         </div>
       </section>
 
@@ -354,7 +361,7 @@
           },
           bloom: {
             eyebrow: "EXPERIENCE 11 / BLOOM STUDIO", stage: "BLOOM STUDIO / LIVE",
-            description: "Plant and scatter procedural flowers, grow a two-hand garden, sculpt spider lilies, or push a luminous particle storm.",
+            description: "Grow a 3D flower garden, charge and release constellations, write with golden sparks, and explore five more hand-controlled art scenes.",
           },
         });
 

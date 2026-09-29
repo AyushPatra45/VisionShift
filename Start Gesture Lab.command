@@ -7,7 +7,7 @@ LOG_PREFIX="/tmp/visionshift-server"
 
 cd "$PROJECT_DIR" || exit 1
 
-if [[ ! -f node_modules/@mediapipe/tasks-vision/vision_bundle.mjs ]]; then
+if [[ ! -f node_modules/@mediapipe/tasks-vision/vision_bundle.mjs || ! -f node_modules/three/build/three.module.js ]]; then
   echo "Installing the hand-tracking runtime…"
   npm install || {
     echo "Setup failed. Check your internet connection, then try again."
